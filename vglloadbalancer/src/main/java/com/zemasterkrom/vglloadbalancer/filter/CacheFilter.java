@@ -11,6 +11,7 @@ import org.springframework.cloud.gateway.filter.factory.rewrite.RewriteFunction;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -75,10 +76,10 @@ public class CacheFilter implements GlobalFilter, Ordered {
     public class ResponseCacher implements RewriteFunction<String, String> {
         @Override
         public Publisher<String> apply(ServerWebExchange exchange, String body) {
-            HttpStatus responseCode = exchange.getResponse().getStatusCode();
+            HttpStatusCode responseCode = exchange.getResponse().getStatusCode();
             HttpMethod method = exchange.getRequest().getMethod();
 
-            if (responseCode != null && method != null && method.equals(HttpMethod.GET) && responseCode.equals(HttpStatus.OK)) {
+            if (responseCode != null && method.equals(HttpMethod.GET) && responseCode.value() == HttpStatus.OK.value()) {
                 CacheFilter.this.cache.put(exchange.getRequest().getPath().toString(), body);
             }
 

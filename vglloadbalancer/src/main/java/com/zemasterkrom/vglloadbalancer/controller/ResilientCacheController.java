@@ -6,14 +6,11 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.net.URI;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.Optional;
 
 
 /**
@@ -50,9 +47,7 @@ public class ResilientCacheController {
 
         if (attr != null) {
             originalPath = attr.iterator().hasNext() ? attr.iterator().next().getPath() : "";
-            System.out.println(originalPath);
         }
-        System.out.println(this.cache.get(originalPath));
 
         return ResponseEntity.ok(
                 this.cache.get(originalPath) != null ?

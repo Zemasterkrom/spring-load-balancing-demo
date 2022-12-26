@@ -1,11 +1,11 @@
-FROM maven:3.8.6-openjdk-8-slim as builder
+FROM maven:3.8-eclipse-temurin-17 as builder
 
 WORKDIR /usr/vglservice
 COPY src src/
 COPY pom.xml .
-RUN mvn -f pom.xml clean package
+RUN mvn -f pom.xml -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package
 
-FROM openjdk:8-jdk-alpine
+FROM eclipse-temurin:17-jre
 
 WORKDIR /usr/vglservice
 ENV CONFIG_SERVER_URL=${CONFIG_SERVER_URL}

@@ -6,12 +6,12 @@ runs:
   steps:
     - name: Build API package
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
-      run: mvn -DfinalName=vglservice clean package -f vglservice/pom.xml
+      run: mvn -DfinalName=vglservice -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package -f vglservice/pom.xml
 
     - name: Build Config server package
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
-      run: mvn -DfinalName=vglconfig clean package -f vglconfig/pom.xml
+      run: mvn -DfinalName=vglconfig -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package -f vglconfig/pom.xml
 
     - name: Build npm front package
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
-      run: npm install --prefix vglfront
+      run: npm install --progress=false --prefix vglfront

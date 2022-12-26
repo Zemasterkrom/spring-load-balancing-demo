@@ -6,8 +6,8 @@ runs:
   steps:
     - name: Build Load Balancing server package
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
-      run: mvn -DfinalName=vglloadbalancer clean package -f vglloadbalancer/pom.xml
+      run: mvn -DfinalName=vglloadbalancer -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package -f vglloadbalancer/pom.xml
 
     - name: Build Eureka discovery server package
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
-      run: mvn -DfinalName=vgldiscovery clean package -f vgldiscovery/pom.xml
+      run: mvn -DfinalName=vgldiscovery -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package -f vgldiscovery/pom.xml

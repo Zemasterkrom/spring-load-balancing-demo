@@ -1,17 +1,59 @@
-name: Build and test with Load Balancing
+name: Build & test with Load Balancing
 on: push
 
 jobs:
-
-  build-test-lb-docker:
-    name: ${{ matrix.os }} - Build and test with Load Balancing (Docker)
+  build-test-lb:
+    name: ${{ matrix.os }} - Build & test with Load Balancing
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest]
+        os: [ ubuntu-latest, macos-latest ]
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Set up CI/CD builders
+        uses: ./.github/actions/setup
+
+      - name: Build main components (API, Config server)
+        uses: ./.github/actions/build-main
+
+      - name: Build Load Balancing related components (Eureka discovery server, Load Balancing server)
+        uses: ./.github/actions/build-lb
+
+      - name: Change default front server port
+        shell: bash
+        run: echo $'\nFRONT_SERVER_PORT=4201' >> vglfront/.env
+
+      - name: Run Config server
+        run: java -DGIT_CONFIG_BRANCH=${{github.head_ref || github.ref_name}} -DGIT_CONFIG_REPOSITORY=https://github.com/Zemasterkrom/spring-cloud-video-games-api-config -XX:TieredStopAtLevel=1 -jar vglconfig/target/vglconfig.jar &
+
+      - name: Run Spring Boot API
+        run: java -DALLOWED_ORIGINS=http://localhost:4201 -XX:TieredStopAtLevel=1 -jar vglservice/target/vglservice.jar &
+
+      - name: Run Eureka discovery server
+        run: java -jar vgldiscovery/target/vgldiscovery.jar -XX:TieredStopAtLevel=1 &
+
+      - name: Run Load Balancing server
+        run: java -jar vglloadbalancer/target/vglloadbalancer.jar -XX:TieredStopAtLevel=1 &
+
+      - name: Run npm front
+        run: npm run start --prefix vglfront &
+
+      - name: Test API and front
+        uses: ./.github/actions/test-lb
+
+  build-test-lb-docker:
+    name: ${{ matrix.os }} - Build & test with Load Balancing (Docker)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker-practice/actions-setup-docker@master
+        if: runner.os == 'macOS'
 
       - name: Change default front server port
         shell: bash
@@ -20,28 +62,11 @@ jobs:
           echo $'\nAPI_ALLOWED_ORIGINS=http://localhost:4201' >> .env
           echo $'\nLOADBALANCER_ALLOWED_ORIGINS=http://localhost:4201' >> .env
 
-      - name: Clean up memory
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-      - name: Install Docker on macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew install docker docker-machine docker-compose
-          mkdir -p ~/.docker/cli-plugins
-          ln -sfn $(brew --prefix)/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
-          docker-machine create --driver virtualbox default
-          docker-machine env default
-          eval "$(docker-machine env default)"
-
       - name: Launch containers
         run: |
           GIT_CONFIG_BRANCH=${{github.head_ref || github.ref_name}} docker compose build vglconfig vglservice
           GIT_CONFIG_BRANCH=${{github.head_ref || github.ref_name}} docker compose build vgldiscovery vglloadbalancer
-          GIT_CONFIG_BRANCH=${{github.head_ref || github.ref_name}} docker compose up --build
+          GIT_CONFIG_BRANCH=${{github.head_ref || github.ref_name}} docker compose up -d --build
 
       - name: Test API and front
         uses: ./.github/actions/test-lb

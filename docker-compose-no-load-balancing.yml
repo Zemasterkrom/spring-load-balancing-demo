@@ -16,7 +16,7 @@ services:
 
   vglconfig:
     build: ./vglconfig
-    image: vglconfig:1.0.9-SNAPSHOT
+    image: vglconfig:1.0.10-SNAPSHOT
     restart: on-failure
     container_name: vglconfig-nlb
     environment:
@@ -27,7 +27,7 @@ services:
 
   vglservice:
     build: ./vglservice
-    image: vglservice:2.6.1-SNAPSHOT
+    image: vglservice:2.6.2-SNAPSHOT
     restart: on-failure
     container_name: vglservice-nlb
     environment:
@@ -46,7 +46,7 @@ services:
 
   vglfront:
     build: ./vglfront
-    image: vglfront:0.5.2-SNAPSHOT
+    image: vglfront:0.5.3-SNAPSHOT
     restart: on-failure
     container_name: vglfront-nlb
     environment:

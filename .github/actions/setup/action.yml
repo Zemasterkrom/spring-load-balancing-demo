@@ -3,11 +3,11 @@ description: Set up OpenJDK, Node, Newman
 runs:
   using: "composite"
   steps:
-    - name: Set up OpenJDK 8
+    - name: Set up OpenJDK 11
       uses: actions/setup-java@v3
       with:
-        distribution: 'adopt'
-        java-version: '8'
+        distribution: 'temurin'
+        java-version: '17'
 
     - uses: actions/cache@v3
       with:

@@ -5,29 +5,29 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.6.1</version>
+        <version>3.0.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.zemasterkrom</groupId>
     <artifactId>vglconfig</artifactId>
-    <version>1.0.9-SNAPSHOT</version>
+    <version>1.0.10-SNAPSHOT</version>
     <name>vglconfig</name>
     <properties>
-        <java.version>1.8</java.version>
-        <spring-cloud.version>2021.0.0</spring-cloud.version>
+        <java.version>17</java.version>
+        <spring-cloud.version>2022.0.0</spring-cloud.version>
         <finalName>${project.artifactId}-${project.version}</finalName>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-config-server</artifactId>
-            <version>3.1.5</version>
+            <version>4.0.0</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-            <version>2.7.6</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-indexer</artifactId>
+            <version>6.0.3</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
     <dependencyManagement>
@@ -52,6 +52,18 @@
                     <mainClass>com.zemasterkrom.vglconfig.VideoGameLibraryConfigApplication</mainClass>
                 </configuration>
                 <version>2.6.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>7.4.1</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

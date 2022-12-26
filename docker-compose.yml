@@ -16,7 +16,7 @@ services:
 
   vglconfig:
     build: ./vglconfig
-    image: vglconfig:1.0.9-SNAPSHOT
+    image: vglconfig:1.0.10-SNAPSHOT
     restart: on-failure
     container_name: vglconfig
     environment:
@@ -27,7 +27,7 @@ services:
 
   vglservice:
     build: ./vglservice
-    image: vglservice:2.6.1-SNAPSHOT
+    image: vglservice:2.6.2-SNAPSHOT
     restart: on-failure
     container_name: vglservice
     environment:
@@ -47,7 +47,7 @@ services:
 
   vglservice-two:
     build: ./vglservice
-    image: vglservice:2.6.1-SNAPSHOT
+    image: vglservice:2.6.2-SNAPSHOT
     restart: on-failure
     container_name: vglservice-two
     environment:
@@ -67,7 +67,7 @@ services:
 
   vgldiscovery:
     build: ./vgldiscovery
-    image: vgldiscovery:1.0.8-SNAPSHOT
+    image: vgldiscovery:1.0.10-SNAPSHOT
     restart: on-failure
     container_name: vgldiscovery
     environment:
@@ -81,7 +81,7 @@ services:
 
   vglloadbalancer:
     build: ./vglloadbalancer
-    image: vglloadbalancer:1.2.5-SNAPSHOT
+    image: vglloadbalancer:1.2.7-SNAPSHOT
     restart: on-failure
     container_name: vglloadbalancer
     environment:
@@ -100,7 +100,7 @@ services:
 
   vglfront:
     build: ./vglfront
-    image: vglfront:0.5.2-SNAPSHOT
+    image: vglfront:0.5.3-SNAPSHOT
     restart: on-failure
     container_name: vglfront
     environment:
