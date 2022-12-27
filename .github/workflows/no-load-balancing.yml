@@ -50,6 +50,7 @@ jobs:
 
       - name: Run npm front (Windows environment)
         if: runner.os == 'Windows'
+        shell: cmd
         run: |
           cd vglfront
           start npm run start
