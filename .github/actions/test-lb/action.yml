@@ -29,7 +29,7 @@ runs:
       shell: ${{ runner.os == 'Windows' && 'cmd' || 'sh' }}
       run: npm install -g newman
 
-    - name: Wait for API to be ready
+    - name: Wait for API to be ready (Load Balancing)
       uses: emilioschepis/wait-for-endpoint@v1.0.3
       with:
         url: ${{ steps.lb_env.outputs.api_url }}/video-games/add

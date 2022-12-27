@@ -1,12 +1,12 @@
 {
   "name": "video-games-library-front",
   "license": "MIT",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "scripts": {
     "ng": "ng",
     "start": "run-script-os",
     "start:nix": "sh server/no-docker/serve.sh",
-    "start:win32": "call server/no-docker/serve.bat",
+    "start:win32": "cmd.exe /c \"call server/no-docker/serve.bat\"",
     "build": "ng build"
   },
   "private": true,
