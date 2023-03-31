@@ -1,4 +1,4 @@
-package com.zemasterkrom.videogameslibraryapplication.configuration;
+package com.zemasterkrom.videogameslibraryapplication.configuration.http;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

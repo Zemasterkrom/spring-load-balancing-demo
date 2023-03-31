@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 url_key_check=$(grep "window['environment']['url'].*=.*" "$2" 2>/dev/null)
 

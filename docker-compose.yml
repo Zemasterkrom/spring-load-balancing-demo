@@ -1,4 +1,4 @@
-version: "3"
+version: '2'
 
 services:
   vgldatabase:
@@ -16,18 +16,20 @@ services:
 
   vglconfig:
     build: ./vglconfig
-    image: vglconfig:1.0.10-SNAPSHOT
+    image: vglconfig
     restart: on-failure
     container_name: vglconfig
     environment:
       - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
       - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-master}
+    volumes:
+      - ./vglconfig/src/main/resources/application.properties:/usr/vglconfig/application.properties
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 
   vglservice:
     build: ./vglservice
-    image: vglservice:2.6.2-SNAPSHOT
+    image: vglservice
     restart: on-failure
     container_name: vglservice
     environment:
@@ -35,8 +37,9 @@ services:
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
-      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
-      - ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
+      - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
+      - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
+      - API_HOSTNAME=${API_HOSTNAME:-}
     volumes:
       - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
     ports:
@@ -44,10 +47,12 @@ services:
     depends_on:
       - vglconfig
       - vgldatabase
+      - vglloadbalancer
+      - vgldiscovery
 
   vglservice-two:
     build: ./vglservice
-    image: vglservice:2.6.2-SNAPSHOT
+    image: vglservice
     restart: on-failure
     container_name: vglservice-two
     environment:
@@ -55,8 +60,9 @@ services:
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
-      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
-      - ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
+      - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
+      - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
+      - API_HOSTNAME=${API_TWO_HOSTNAME:-}
     ports:
       - ${API_TWO_SERVER_PORT}:8080
     volumes:
@@ -64,43 +70,12 @@ services:
     depends_on:
       - vglconfig
       - vgldatabase
-
-  vgldiscovery:
-    build: ./vgldiscovery
-    image: vgldiscovery:1.0.10-SNAPSHOT
-    restart: on-failure
-    container_name: vgldiscovery
-    environment:
-      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
-    ports:
-      - ${DISCOVERY_SERVER_PORT}:9999
-    volumes:
-      - ./vgldiscovery/src/main/resources/application.properties:/usr/vgldiscovery/application.properties
-    depends_on:
-      - vglconfig
-
-  vglloadbalancer:
-    build: ./vglloadbalancer
-    image: vglloadbalancer:1.2.7-SNAPSHOT
-    restart: on-failure
-    container_name: vglloadbalancer
-    environment:
-      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
-      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
-      - ALLOWED_ORIGINS=${LOADBALANCER_ALLOWED_ORIGINS}
-    ports:
-      - ${LOADBALANCER_SERVER_PORT}:10000
-    volumes:
-      - ./vglloadbalancer/src/main/resources/application.properties:/usr/vglloadbalancer/application.properties
-    depends_on:
-      - vglconfig
+      - vglloadbalancer
       - vgldiscovery
-      - vglservice
-      - vglservice-two
 
   vglfront:
     build: ./vglfront
-    image: vglfront:0.5.4-SNAPSHOT
+    image: vglfront
     restart: on-failure
     container_name: vglfront
     environment:
@@ -111,10 +86,38 @@ services:
       - ./vglfront/server/docker/default.conf:/etc/nginx/conf.d/default.conf
     ports:
       - ${FRONT_SERVER_PORT}:80
+
+  vglloadbalancer:
+    build: ./vglloadbalancer
+    image: vglloadbalancer
+    restart: on-failure
+    container_name: vglloadbalancer
+    environment:
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
+      - LOADBALANCER_ALLOWED_ORIGINS=${LOADBALANCER_ALLOWED_ORIGINS}
+      - LOADBALANCER_HOSTNAME=${LOADBALANCER_HOSTNAME:-}
+    ports:
+      - ${LOADBALANCER_SERVER_PORT}:10000
+    volumes:
+      - ./vglloadbalancer/src/main/resources/application.properties:/usr/vglloadbalancer/application.properties
     depends_on:
-      - vglservice
+      - vglconfig
       - vgldiscovery
-      - vglloadbalancer
+
+  vgldiscovery:
+    build: ./vgldiscovery
+    image: vgldiscovery
+    restart: on-failure
+    container_name: vgldiscovery
+    environment:
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+    ports:
+      - ${DISCOVERY_SERVER_PORT}:9999
+    volumes:
+      - ./vgldiscovery/src/main/resources/application.properties:/usr/vgldiscovery/application.properties
+    depends_on:
+      - vglconfig
 
 volumes:
   vgldatabase:

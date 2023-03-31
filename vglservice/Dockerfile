@@ -3,21 +3,20 @@ FROM maven:3.8-eclipse-temurin-17 as builder
 WORKDIR /usr/vglservice
 COPY src src/
 COPY pom.xml .
-RUN mvn -f pom.xml -T 1C -Dmaven.test.skip -DskipTests -Dmaven.javadoc.skip=true clean package
+RUN mvn -f pom.xml -T 4 -DskipTests clean package
 
 FROM eclipse-temurin:17-jre
 
 WORKDIR /usr/vglservice
 ENV CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
 ENV ENABLE_LOAD_BALANCING=${ENABLE_LOAD_BALANCING}
-ENV EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
-ENV ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+ENV EUREKA_SERVERS_URLS=${EUREKA_SERVER_URLS}
+ENV API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
+ENV API_HOSTNAME=${API_HOSTNAME:-$(hostname)}
+ENV DB_URL=${DB_URL}
+ENV DB_USERNAME=${DB_USERNAME}
+ENV DB_PASSWORD=${DB_PASSWORD}
 COPY --from=builder /usr/vglservice/target/*.jar app.jar
-COPY ./serve.sh /usr/vglservice
-RUN chmod +x ./serve.sh && \
-    wget https://github.com/atkrad/wait4x/releases/download/v2.9.1/wait4x-linux-amd64.tar.gz && \
-    tar -xvf wait4x-linux-amd64.tar.gz && \
-    chmod +x ./wait4x
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "sh /usr/vglservice/serve.sh"]
+ENTRYPOINT java -Dspring.config.location=file:/usr/vglservice/application.properties -XX:TieredStopAtLevel=1 -DCONFIG_SERVER_URL=${CONFIG_SERVER_URL} -DENABLE_LOAD_BALANCING=${ENABLE_LOAD_BALANCING:-true} -DEUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS} -DAPI_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS} -DAPI_HOSTNAME=${API_HOSTNAME:-$(hostname)} -DDB_URL=${DB_URL} -DDB_USERNAME=${DB_USERNAME} -DDB_PASSWORD=${DB_PASSWORD} -jar /usr/vglservice/app.jar

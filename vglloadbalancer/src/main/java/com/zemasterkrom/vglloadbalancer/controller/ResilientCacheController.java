@@ -1,6 +1,6 @@
 package com.zemasterkrom.vglloadbalancer.controller;
 
-import com.zemasterkrom.vglloadbalancer.configuration.CacheInstance;
+import com.zemasterkrom.vglloadbalancer.configuration.cache.CacheInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.MediaType;
@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.net.URI;
+import java.util.Base64;
 import java.util.LinkedHashSet;
+import java.util.List;
 
 
 /**
@@ -49,10 +51,14 @@ public class ResilientCacheController {
             originalPath = attr.iterator().hasNext() ? attr.iterator().next().getPath() : "";
         }
 
-        return ResponseEntity.ok(
-                this.cache.get(originalPath) != null ?
-                        this.cache.get(originalPath).toString() :
-                        "{}"
-        );
+        String cache = (String) this.cache.get(originalPath);
+
+        // No cache available : retrieve the Default-Value response header
+        if (cache == null) {
+            List<String> defaultValue = exchange.getResponse().getHeaders().get("Default-Value");
+            return ResponseEntity.ok(defaultValue != null && defaultValue.size() > 0 ? new String(Base64.getDecoder().decode(defaultValue.get(0))) : "");
+        }
+
+        return ResponseEntity.ok(cache);
     }
 }

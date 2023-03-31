@@ -1,4 +1,4 @@
-package com.zemasterkrom.vglloadbalancer.configuration;
+package com.zemasterkrom.vglloadbalancer.configuration.cache;
 
 
 import com.github.benmanes.caffeine.cache.Cache;

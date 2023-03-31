@@ -1,0 +1,33 @@
+root = true
+
+[*]
+trim_trailing_whitespace = true
+
+[*.properties]
+ij_properties_keep_blank_lines = true
+ij_properties_spaces_around_key_value_delimiter = true
+
+[*.ps1]
+ij_powershell_method_brace_style = end_of_line
+ij_powershell_class_brace_style = end_of_line
+ij_powershell_block_brace_style = end_of_line
+ij_powershell_else_on_new_line = false
+ij_powershell_catch_on_new_line = false
+ij_powershell_finally_on_new_line = false
+ij_powershell_while_on_new_line = false
+ij_powershell_spaces_within_parentheses = false
+ij_powershell_spaces_within_method_call_parentheses = false
+ij_powershell_spaces_within_annotation_parentheses = false
+ij_powershell_method_annotation_wrap = off
+ij_powershell_space_after_colon = false
+ij_powershell_space_before_annotation_parameter_list = false
+ij_powershell_space_after_comma = true
+ij_powershell_spaces_around_relational_operators = true
+ij_powershell_spaces_within_while_parentheses = false
+ij_powershell_spaces_within_switch_parentheses = false
+ij_powershell_spaces_within_for_parentheses = false
+ij_powershell_spaces_within_cast_parentheses = false
+ij_powershell_spaces_within_if_parentheses = false
+ij_powershell_spaces_within_method_parentheses = false
+ij_powershell_spaces_within_braces = true
+ij_powershell_spaces_within_brackets = false

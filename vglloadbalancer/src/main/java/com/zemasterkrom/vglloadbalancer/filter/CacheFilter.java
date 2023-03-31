@@ -1,6 +1,6 @@
 package com.zemasterkrom.vglloadbalancer.filter;
 
-import com.zemasterkrom.vglloadbalancer.configuration.CacheInstance;
+import com.zemasterkrom.vglloadbalancer.configuration.cache.CacheInstance;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;

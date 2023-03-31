@@ -1,6 +1,3 @@
-*.env
-src/assets/environment.js
-
 # dependencies
 /node_modules
 node_modules/
@@ -39,6 +36,11 @@ testem.log
 /tmp
 /out-tsc
 /bazel-out
+
+# environment
+**.properties
+src/assets/environment.js
+**.env
 
 # System Files
 .DS_Store
