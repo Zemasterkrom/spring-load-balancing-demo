@@ -1,0 +1,99 @@
+# shellcheck shell=sh
+# shellcheck disable=SC1090
+# shellcheck disable=SC2034
+# shellcheck disable=SC2120
+# shellcheck disable=SC2154
+# shellcheck disable=SC2215
+# shellcheck disable=SC2286
+# shellcheck disable=SC2288
+# shellcheck disable=SC2317
+Describe 'Docker build (no Load Balancing)'
+    Mock init_shell_params
+        set -e
+    End
+
+    Mock configure_environment_variables
+        true
+    End
+
+    current_location_is_at_the_base_of_the_project() {
+        [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
+    }
+
+    BeforeEach "source_only=false"
+
+    Describe 'Abstract (mocked) build behavior check'
+        Describe 'Build mode disabled'
+            Mock auto_detect_system_stack
+                true
+            End
+
+            Mock exit_script
+                true
+            End
+
+            Mock eval_script
+                echo "Docker build triggered"
+            End
+                    
+            It "checks that Docker isn't triggered"
+                When call main --no-start --no-build --no-load-balancing
+                The status should be success
+                The stdout should be blank
+                The variable build should eq false
+                The variable start should eq false
+                The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
+                The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                Assert current_location_is_at_the_base_of_the_project
+            End 
+        End
+
+        Describe 'Build mode enabled'
+            Mock auto_detect_system_stack
+                environment="${DOCKER_ENVIRONMENT}"
+                docker_compose_cli="docker"
+            End
+
+            Mock eval_script
+                if echo "$1" | grep -q "docker-compose-no-load-balancing.yml" && echo "$1" | grep -q build ; then
+                    echo "Docker build (no load-balancing) triggered"
+                fi
+            End
+                
+            It 'checks that Docker is triggered'
+                When call main --no-start --no-load-balancing
+                The status should be success
+                The lines of stdout should equal 2
+                The line 1 of stdout should eq "Building packages and images ..."
+                The line 2 of stdout should eq "Docker build (no load-balancing) triggered"
+                The variable build should eq true
+                The variable start should eq false
+                The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
+                The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                Assert current_location_is_at_the_base_of_the_project
+            End
+        End
+    End
+
+    Describe 'Concrete build behavior check'
+        auto_detect_system_stack() {
+            if detect_compatible_available_docker_compose_cli >/dev/null 2>&1; then
+                environment="${DOCKER_ENVIRONMENT}"
+            else
+                return 127
+            fi
+        }
+
+        It 'builds the packages and images correctly'
+            When call main --no-start --no-load-balancing
+            The status should be success
+            The line 1 of stdout should eq "Building packages and images ..."
+            The variable build should eq true
+            The variable start should eq false
+            The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
+            The variable environment should eq "${DOCKER_ENVIRONMENT}"
+            The stderr should satisfy true
+            Assert current_location_is_at_the_base_of_the_project
+        End
+    End
+End
