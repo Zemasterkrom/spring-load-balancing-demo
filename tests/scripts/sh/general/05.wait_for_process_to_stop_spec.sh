@@ -8,7 +8,7 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Wait for process to stop'
-    Describe 'consistence checks'
+    Context 'consistence checks'
         Parameters
             Test
             TestWithMultipleWords
@@ -16,7 +16,7 @@ Describe 'Wait for process to stop'
             Test_With_Underscore
         End
 
-        Describe 'check without timeout for the created process'
+        Context 'check without timeout for the created process'
             check_process_existence() {
                 return 1
             }
@@ -28,8 +28,8 @@ Describe 'Wait for process to stop'
             End
         End
 
-        Describe 'check with timeout for the created process'
-            Describe 'Successful wait'
+        Context 'check with timeout for the created process'
+            Context 'Successful wait'
                 check_process_existence() {
                     if [ -z "${check_process_existence_exec_count}" ]; then
                         check_process_existence_exec_count=0
@@ -51,7 +51,7 @@ Describe 'Wait for process to stop'
                 End
             End
 
-            Describe 'Failed wait'
+            Context 'Failed wait'
                 check_process_existence() {
                     return
                 }
@@ -66,8 +66,8 @@ Describe 'Wait for process to stop'
         End
     End
 
-    Describe 'Basic fail cases'
-        Describe 'Incorrect service name'
+    Context 'Basic fail cases'
+        Context 'Incorrect service name'
             Parameters
                 "Spaces are not allowed"
                 "_UnderscoreAtBeginningIsNotAllowed"

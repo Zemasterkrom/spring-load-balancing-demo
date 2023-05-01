@@ -16,7 +16,7 @@ Describe 'Wait until temporary runner file is ready'
         The path "${TMP_DATA_FILE_LOCATION}" should not be exist
     End
 
-    Describe 'Wait with tmp file creation'
+    Context 'Wait with tmp file creation'
         create_another_tmp_runner_file() {
             { sleep 2 && touch "${TMP_DATA_FILE_LOCATION}_2"; } &
         }
@@ -45,8 +45,8 @@ Describe 'Wait until temporary runner file is ready'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'Fail with inexistent process'
+    Context 'Error cases'
+        Context 'Fail with inexistent process'
             Mock get_process_info
                 true
             End
@@ -60,7 +60,7 @@ Describe 'Wait until temporary runner file is ready'
             End
         End
 
-        Describe 'Incorrect service name'
+        Context 'Incorrect service name'
             Parameters
                 "Spaces are not allowed"
                 "_UnderscoreAtBeginningIsNotAllowed"
@@ -73,7 +73,7 @@ Describe 'Wait until temporary runner file is ready'
             End
         End
 
-        Describe 'Incorrect temporary file name'
+        Context 'Incorrect temporary file name'
             Parameters
                 "Spaces are not allowed"
                 "_UnderscoreAtBeginningIsNotAllowed"
@@ -86,7 +86,7 @@ Describe 'Wait until temporary runner file is ready'
             End
         End
 
-        Describe 'Incorrect timeout'
+        Context 'Incorrect timeout'
             Parameters
                 -1
                 " -1"
@@ -101,7 +101,7 @@ Describe 'Wait until temporary runner file is ready'
             End
         End
 
-        Describe 'Incorrect PID'
+        Context 'Incorrect PID'
             Parameters
                 " -1"
                 "-a"

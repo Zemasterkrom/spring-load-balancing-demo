@@ -22,8 +22,8 @@ Describe 'Docker build (Load Balancing)'
 
     BeforeEach "source_only=false"
 
-    Describe 'Abstract (mocked) build behavior check'
-        Describe 'Build mode disabled'
+    Context 'Abstract (mocked) build behavior check'
+        Context 'Build mode disabled'
             Mock auto_detect_system_stack
                 true
             End
@@ -48,7 +48,7 @@ Describe 'Docker build (Load Balancing)'
             End 
         End
 
-        Describe 'Build mode enabled'
+        Context 'Build mode enabled'
             Mock auto_detect_system_stack
                 environment="${DOCKER_ENVIRONMENT}"
                 docker_compose_cli="docker"
@@ -75,7 +75,7 @@ Describe 'Docker build (Load Balancing)'
         End
     End
 
-    Describe 'Concrete build behavior check'
+    Context 'Concrete build behavior check'
         auto_detect_system_stack() {
             if detect_compatible_available_docker_compose_cli >/dev/null 2>&1; then
                 environment="${DOCKER_ENVIRONMENT}"

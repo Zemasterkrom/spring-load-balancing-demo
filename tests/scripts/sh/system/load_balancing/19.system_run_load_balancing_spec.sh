@@ -71,8 +71,8 @@ Describe 'System run (Load Balancing)'
 
     BeforeEach "source_only=false"
 
-    Describe 'Abstract (mocked) run behavior check'
-        Describe 'Run mode disabled'
+    Context 'Abstract (mocked) run behavior check'
+        Context 'Run mode disabled'
             exit_script() {
                 return "${1:-0}"
             }
@@ -89,7 +89,7 @@ Describe 'System run (Load Balancing)'
             End
         End
 
-        Describe 'Run mode enabled'
+        Context 'Run mode enabled'
             auto_detect_system_stack() {
                 environment="${SYSTEM_ENVIRONMENT}"
             }
@@ -98,7 +98,7 @@ Describe 'System run (Load Balancing)'
                 true
             End
 
-            Describe 'Successfully launched background processes'
+            Context 'Successfully launched background processes'
                 is_waiting_for_cleanup() {
                     if [ -z "${is_waiting_for_cleanup_executed}" ]; then
                         queued_signal_code=130
@@ -139,7 +139,7 @@ Describe 'System run (Load Balancing)'
                 End
             End
 
-            Describe 'Exited processes'
+            Context 'Exited processes'
                 start_java_process() {
                     true &
                 }
@@ -176,7 +176,7 @@ Describe 'System run (Load Balancing)'
         End
     End
 
-    Describe 'Concrete run behavior check'
+    Context 'Concrete run behavior check'
         is_waiting_for_cleanup() {
             if [ -z "${is_waiting_for_cleanup_executed}" ]; then
                 queued_signal_code=130

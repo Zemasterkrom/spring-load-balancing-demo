@@ -28,7 +28,7 @@ Describe 'Cleanup logic check'
         return "${1:-0}"
     }
 
-    Describe 'Basic cleanup only'
+    Context 'Basic cleanup only'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -58,7 +58,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Basic cleanup only (force kill)'
+    Context 'Basic cleanup only (force kill)'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -88,7 +88,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Advanced cleanup only'
+    Context 'Advanced cleanup only'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -117,7 +117,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Advanced cleanup only (force kill)'
+    Context 'Advanced cleanup only (force kill)'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -146,7 +146,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Basic cleanup with advanced cleanup'
+    Context 'Basic cleanup with advanced cleanup'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -177,7 +177,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Basic cleanup with advanced cleanup (force kill)'
+    Context 'Basic cleanup with advanced cleanup (force kill)'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -208,7 +208,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Basic cleanup with advanced cleanup and a custom check command (force kill)'
+    Context 'Basic cleanup with advanced cleanup and a custom check command (force kill)'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0
@@ -239,7 +239,7 @@ Describe 'Cleanup logic check'
         End
     End
 
-    Describe 'Basic cleanup with advanced cleanup (two cleanup tries)'
+    Context 'Basic cleanup with advanced cleanup (two cleanup tries)'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
                 check_process_existence_exec_count=0

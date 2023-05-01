@@ -8,7 +8,7 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Retrieve process info'
-    Describe 'Success cases'
+    Context 'Success cases'
         It 'retrieves the ps info of the current process (a process that exists)'
             When call get_process_info $$
             The status should be success
@@ -16,14 +16,14 @@ Describe 'Retrieve process info'
         End
     End
 
-    Describe 'Error cases'
+    Context 'Error cases'
         It 'retrieves the ps info of an inexistent process'
             When call get_process_info 999999999
             The status should eq 3
             The stdout should be blank
         End
 
-        Describe 'Invalid identifiers'
+        Context 'Invalid identifiers'
             Parameters
                 ""
                 a

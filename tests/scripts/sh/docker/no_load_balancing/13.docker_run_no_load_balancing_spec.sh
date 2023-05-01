@@ -71,8 +71,8 @@ Describe 'Docker run (no Load Balancing)'
 
     BeforeEach "source_only=false"
 
-    Describe 'Abstract (mocked) run behavior check'
-        Describe 'Run mode disabled'
+    Context 'Abstract (mocked) run behavior check'
+        Context 'Run mode disabled'
             exit_script() {
                 return "${1:-0}"
             }
@@ -89,7 +89,7 @@ Describe 'Docker run (no Load Balancing)'
             End
         End
 
-        Describe 'Run mode enabled'
+        Context 'Run mode enabled'
             auto_detect_system_stack() {
                 environment="${DOCKER_ENVIRONMENT}"
                 docker_compose_cli="docker compose"
@@ -115,7 +115,7 @@ Describe 'Docker run (no Load Balancing)'
                 [ "$(cat "${TMP_DATA_FILE_LOCATION}_docker_run_test_no_load_balancing")" = "Docker run (no load-balancing) triggered" ] && rm "${TMP_DATA_FILE_LOCATION}_docker_run_test_no_load_balancing"
             }
 
-            Describe 'Successfully launched Docker services'
+            Context 'Successfully launched Docker services'
                 is_waiting_for_cleanup() {
                     if [ -z "${is_waiting_for_cleanup_executed}" ]; then
                         queued_signal_code=130
@@ -155,7 +155,7 @@ Describe 'Docker run (no Load Balancing)'
                 End
             End
 
-            Describe 'Exited Docker services'
+            Context 'Exited Docker services'
                 start_docker_compose_services() {
                     { if echo "$@" | grep -q docker-compose-no-load-balancing.yml && echo "$@" | grep -q up ; then
                         echo "Docker run (no load-balancing) triggered" > "${TMP_DATA_FILE_LOCATION}_docker_run_test_no_load_balancing"
@@ -203,7 +203,7 @@ Describe 'Docker run (no Load Balancing)'
         End
     End
 
-    Describe 'Concrete run behavior check'        
+    Context 'Concrete run behavior check'        
         is_waiting_for_cleanup() {
             if [ -z "${wait_for_docker_services_start_counter}" ]; then
                 wait_for_docker_services_start_counter=0

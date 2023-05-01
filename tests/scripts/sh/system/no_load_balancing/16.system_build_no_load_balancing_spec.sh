@@ -32,7 +32,7 @@ Describe 'System build'
 
     BeforeEach "source_only=false"
 
-    Describe 'Abstract (mocked) build behavior'
+    Context 'Abstract (mocked) build behavior'
         Mock mvn
             echo "$@" | sed 's/^.*-DfinalName=\([^[:space:]]\{1,\}\).*$/\1/g'
         End
@@ -41,7 +41,7 @@ Describe 'System build'
             echo vglfront
         End
 
-        Describe 'Build mode disabled'
+        Context 'Build mode disabled'
             auto_detect_system_stack() {
                 environment="${SYSTEM_ENVIRONMENT}"
             }
@@ -67,7 +67,7 @@ Describe 'System build'
                 Assert current_location_is_at_the_base_of_the_project
             End
 
-            Describe 'Packages check behavior check'
+            Context 'Packages check behavior check'
                 Mock start
                     true
                 End
@@ -76,7 +76,7 @@ Describe 'System build'
                      return 1
                 }
 
-                Describe 'Missing packages auto-detection'
+                Context 'Missing packages auto-detection'
                     Parameters
                         1
                         2
@@ -100,7 +100,7 @@ Describe 'System build'
                     End
                 End
 
-                Describe 'Missing packages auto-detection (no missing packages)'
+                Context 'Missing packages auto-detection (no missing packages)'
                     check_no_load_balancing_packages() {
                         true
                     }
@@ -119,8 +119,8 @@ Describe 'System build'
             End
         End
 
-        Describe 'Build mode enabled'
-            Describe 'System requirements not met'
+        Context 'Build mode enabled'
+            Context 'System requirements not met'
                 Parameters
                     1
                     2
@@ -156,7 +156,7 @@ ${REQUIREMENTS_TEXT}"
                 End
             End
 
-            Describe 'Build by default'
+            Context 'Build by default'
                 auto_detect_system_stack() {
                     environment="${SYSTEM_ENVIRONMENT}"
                 }
@@ -187,7 +187,7 @@ ${REQUIREMENTS_TEXT}"
         End
     End
 
-    Describe 'Concrete build behavior check'
+    Context 'Concrete build behavior check'
         auto_detect_system_stack() {
             if detect_compatible_available_java_cli >/dev/null 2>&1 && detect_compatible_available_maven_cli >/dev/null 2>&1 && detect_compatible_available_node_cli >/dev/null 2>&1; then
                 environment="${SYSTEM_ENVIRONMENT}"

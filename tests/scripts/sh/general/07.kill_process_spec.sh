@@ -17,7 +17,7 @@ Describe 'Kill process'
         ps -p ${test_pid:-0} >/dev/null 2>&1
     }
 
-    Describe 'Success cases'
+    Context 'Success cases'
         BeforeEach start_process
 
         It 'stops an existing process'
@@ -39,8 +39,8 @@ Describe 'Kill process'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'Inexistent process'
+    Context 'Error cases'
+        Context 'Inexistent process'
             Mock kill
                 return 1
             End
@@ -61,7 +61,7 @@ Describe 'Kill process'
             End
         End
 
-        Describe 'Basic timeout fail'
+        Context 'Basic timeout fail'
             kill() {
                 true
             }
@@ -86,7 +86,7 @@ Describe 'Kill process'
             End
         End
 
-        Describe 'Standard stop fail'
+        Context 'Standard stop fail'
             kill() {
                 if [ "$1" = "-15" ]; then
                     return 1
@@ -106,7 +106,7 @@ Describe 'Kill process'
             End
         End
 
-        Describe 'Standard stop timeout, force kill success'
+        Context 'Standard stop timeout, force kill success'
             kill() {
                 true
             }
@@ -126,7 +126,7 @@ Describe 'Kill process'
             End
         End
 
-        Describe 'Standard stop timeout, force kill fail'
+        Context 'Standard stop timeout, force kill fail'
             kill() {
                 if [ "$1" = "-9" ]; then
                     return 1
@@ -146,7 +146,7 @@ Describe 'Kill process'
             End
         End
 
-        Describe 'Standard stop fail, force kill timeout'
+        Context 'Standard stop fail, force kill timeout'
             kill() {
                 if [ "$1" = "-15" ]; then
                     return 1

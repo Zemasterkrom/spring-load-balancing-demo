@@ -29,8 +29,8 @@ Describe 'Register process info'
         [ "$(get_registered_processes_info | wc -l)" = "$1" ]
     }
 
-    Describe 'Add process info'
-        Describe 'Success cases'
+    Context 'Add process info'
+        Context 'Success cases'
             Parameters
                 1 TestWithPidOnly 1
                 2 TestWithStopCommandOnly "" "true"
@@ -62,7 +62,7 @@ Describe 'Register process info'
             End
         End
 
-        Describe 'Error cases'
+        Context 'Error cases'
             Parameters
                 "#"
                 "Spaces are not allowed"
@@ -91,7 +91,7 @@ Describe 'Register process info'
         End
     End
 
-    Describe 'Update process info'
+    Context 'Update process info'
         Parameters
             1 Test 1
             2 Test2 2

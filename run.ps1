@@ -275,6 +275,9 @@ class SystemStackDetector {
     # Required Java version
     static [Version] $RequiredJavaVersion = [Version]::new(17, 0)
 
+    # Required Maven version
+    static [Version] $RequiredMavenVersion = [Version]::new(3, 5)
+
     # Required Node version
     static [Version] $RequiredNodeVersion = [Version]::new(16, 0)
 
@@ -381,6 +384,27 @@ class SystemStackDetector {
 
     <#
         .DESCRIPTION
+            Detect an available and compatible Maven CLI on the system
+
+        .OUTPUTS
+            Maven CLI info if available and compatible
+    #>
+    static [SystemStackComponent] DetectCompatibleAvailableMavenCli() {
+        try {
+            $MavenVersion = & mvn -version
+        } catch {
+            return $null
+        }
+
+        if (($MavenVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*$") -and (($MavenVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredMavenVersion)) {
+            return [SystemStackComponent]::new("Maven", "mvn", $MavenVersion)
+        }
+
+        return $null
+    }
+
+    <#
+        .DESCRIPTION
             Detect an available and compatible Node CLI on the system
 
         .OUTPUTS
@@ -410,17 +434,18 @@ class SystemStackDetector {
     static [SystemStack] AutoDetectStack() {
         $DockerComposeCli = $null
         $JavaCli = $null
+        $MavenCli = $null
         $NodeCli = $null
 
         if ($DockerComposeCli = [SystemStackDetector]::DetectCompatibleAvailableDockerComposeCli()) {
             return [SystemStack]::new([SystemStackTag]::Docker, @($DockerComposeCli))
         }
 
-        if (($JavaCli = [SystemStackDetector]::DetectCompatibleAvailableJavaCli()) -and ($NodeCli = [SystemStackDetector]::DetectCompatibleAvailableNodeCli())) {
-            return [SystemStack]::new([SystemStackTag]::System, @($JavaCli, $NodeCli))
+        if (($JavaCli = [SystemStackDetector]::DetectCompatibleAvailableJavaCli()) -and ($MavenCli = [SystemStackDetector]::DetectCompatibleAvailableMavenCli()) -and ($NodeCli = [SystemStackDetector]::DetectCompatibleAvailableNodeCli())) {
+            return [SystemStack]::new([SystemStackTag]::System, @($JavaCli, $MavenCli, $NodeCli))
         }
 
-        throw [System.Management.Automation.CommandNotFoundException]::new("Unable to run the demo. Required : Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ) or Java >= $( [SystemStackDetector]::RequiredJavaVersion ) with Node >= $( [SystemStackDetector]::RequiredNodeVersion ).")
+        throw [System.Management.Automation.CommandNotFoundException]::new("Unable to run the demo. Required : Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ) or Java >= $( [SystemStackDetector]::RequiredJavaVersion ) with Maven >= $( [SystemStackDetector]::RequiredMavenVersion ) and Node >= $( [SystemStackDetector]::RequiredNodeVersion ).")
     }
 }
 

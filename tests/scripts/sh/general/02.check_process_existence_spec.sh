@@ -8,7 +8,7 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Check process existence'
-    Describe 'Success cases'
+    Context 'Success cases'
         It 'returns directly since the current process exists'
             When call check_process_existence "" $$
             The status should be success
@@ -35,8 +35,8 @@ Describe 'Check process existence'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'Inexistent process'
+    Context 'Error cases'
+        Context 'Inexistent process'
             Mock get_process_info
                 true
             End
@@ -47,7 +47,7 @@ Describe 'Check process existence'
             End
         End
 
-        Describe 'Inexistent process'
+        Context 'Inexistent process'
             Mock get_process_info
                 true
             End
@@ -58,7 +58,7 @@ Describe 'Check process existence'
             End
         End
 
-        Describe 'Invalid identifiers'
+        Context 'Invalid identifiers'
             Parameters
                 ""
                 a

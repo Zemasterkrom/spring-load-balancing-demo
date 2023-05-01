@@ -92,7 +92,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
     BeforeEach run_subshell_initializer
     AfterEach kill_subshell_initializer
 
-    Describe 'Stop signal blocked'
+    Context 'Stop signal blocked'
         custom_subshell_call() {
             block_exit
         }
@@ -110,7 +110,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         End
     End
 
-    Describe 'Queue signal'
+    Context 'Queue signal'
         custom_subshell_call() {
             queue_exit
         }
@@ -200,7 +200,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         End
     End
 
-    Describe 'Exit signal'
+    Context 'Exit signal'
         custom_subshell_call() {
             unblock_exit && exit
         }
@@ -218,7 +218,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         End
     End
 
-    Describe 'Exit signals'
+    Context 'Exit signals'
         custom_subshell_call() {
             unblock_exit
         }
@@ -252,7 +252,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             The result of function process_is_still_alive should not be successful
         End
 
-        Describe 'Doubled exit signals'
+        Context 'Doubled exit signals'
             exit_script() {
                 unblock_exit
                 write_subshell_variables_to_file
@@ -317,7 +317,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             End
         End
 
-        Describe 'Doubled signals (unblock_exit + queue_exit)'
+        Context 'Doubled signals (unblock_exit + queue_exit)'
             exit_script() {
                 queue_exit
                 write_subshell_variables_to_file
@@ -383,7 +383,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         End
     End
 
-    Describe 'Cleanup queue management'
+    Context 'Cleanup queue management'
         custom_subshell_call() {
             unblock_exit
         }
@@ -424,7 +424,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             End
         End
 
-        Describe 'Handling a queued TERM signal when the current handled signal is INT'
+        Context 'Handling a queued TERM signal when the current handled signal is INT'
             is_waiting_for_cleanup() {
                 if [ -z "${is_waiting_for_cleanup_exec_count}" ]; then
                     is_waiting_for_cleanup_exec_count=0
@@ -455,7 +455,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             End
         End
 
-        Describe 'Handling a queued INT signal'
+        Context 'Handling a queued INT signal'
             is_waiting_for_cleanup() {
                 if [ -z "${is_waiting_for_cleanup_exec_count}" ]; then
                     is_waiting_for_cleanup_exec_count=0
@@ -486,7 +486,7 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             End
         End
 
-        Describe 'Handling a queued INT signal when the current handled signal is TERM'
+        Context 'Handling a queued INT signal when the current handled signal is TERM'
             is_waiting_for_cleanup() {
                 if [ -z "${is_waiting_for_cleanup_exec_count}" ]; then
                     is_waiting_for_cleanup_exec_count=0

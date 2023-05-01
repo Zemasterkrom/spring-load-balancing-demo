@@ -18,13 +18,13 @@ Describe 'Configure environment variables'
         configure_environment_variables
     }
 
-    Describe 'Environment configuration enabled because start is enabled'
+    Context 'Environment configuration enabled because start is enabled'
         Parameters
             "${LOAD_BALANCING_MODE}" .env
             "${NO_LOAD_BALANCING_MODE}" no-load-balancing.env
         End
 
-        Describe "Docker environment"
+        Context "Docker environment"
             BeforeEach "environment=${DOCKER_ENVIRONMENT}"
 
             It 'configures the environment variables with success without trying to modify the default ones'
@@ -58,7 +58,7 @@ Describe 'Configure environment variables'
             End
         End
 
-        Describe 'System environment'
+        Context 'System environment'
             BeforeEach "environment=${SYSTEM_ENVIRONMENT}"
 
             It 'configures the environment variables with success without trying to modify the default ones'
@@ -73,7 +73,7 @@ Describe 'Configure environment variables'
                 The variable environment_file should eq "$2"
             End
 
-            Describe 'Software fail'
+            Context 'Software fail'
                 Mock git
                     return 1
                 End
@@ -101,7 +101,7 @@ Describe 'Configure environment variables'
         End  
     End
 
-    Describe 'Environment configuration disabled because start is disabled'
+    Context 'Environment configuration disabled because start is disabled'
         try_to_start_configuring_environment_without_start_enabled() {
             start=false
             configure_environment_variables

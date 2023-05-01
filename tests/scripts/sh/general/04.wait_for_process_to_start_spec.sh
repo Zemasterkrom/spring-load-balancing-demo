@@ -8,7 +8,7 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Wait for process to start'
-    Describe 'consistence checks'
+    Context 'consistence checks'
         Parameters
             Test
             TestWithMultipleWords
@@ -17,7 +17,7 @@ Describe 'Wait for process to start'
         End
 
 
-        Describe 'check without timeout for the current process'
+        Context 'check without timeout for the current process'
             It 'directly returns since the current process exists'
                 When call wait_for_process_to_start "$1" $$ 0
                 The status should be success
@@ -26,7 +26,7 @@ Describe 'Wait for process to start'
             End
         End
 
-        Describe 'check with timeout for the current process'
+        Context 'check with timeout for the current process'
             It 'directly returns since the current process exists'
                 When call wait_for_process_to_start "$1" $$ 5
                 The status should be success
@@ -35,7 +35,7 @@ Describe 'Wait for process to start'
             End
 
 
-            Describe 'get_process_info : mocked version (process creation)'
+            Context 'get_process_info : mocked version (process creation)'
                 Mock get_process_info
                     if [ -f "${TMP_DATA_FILE_LOCATION}_PID_test" ]; then
                         echo true
@@ -59,7 +59,7 @@ Describe 'Wait for process to start'
                     The stdout should eq "Waiting for $1 with PID $$ to start ... Please wait ..."
                 End
 
-                Describe 'get_process_info : mocked version (timeout simulation)'
+                Context 'get_process_info : mocked version (timeout simulation)'
                     Mock get_process_info
                         true
                     End
@@ -75,8 +75,8 @@ Describe 'Wait for process to start'
         End
     End
 
-    Describe 'Basic fail cases'
-        Describe 'Incorrect service name'
+    Context 'Basic fail cases'
+        Context 'Incorrect service name'
             Parameters
                 "Spaces are not allowed"
                 "_UnderscoreAtBeginningIsNotAllowed"
@@ -89,7 +89,7 @@ Describe 'Wait for process to start'
             End
         End
 
-        Describe 'Incorrect timeout'
+        Context 'Incorrect timeout'
             Parameters
                 -1
                 " -1"
@@ -104,7 +104,7 @@ Describe 'Wait for process to start'
             End
         End
 
-        Describe 'Incorrect PID'
+        Context 'Incorrect PID'
             Parameters
                 " -1"
                 "-a"

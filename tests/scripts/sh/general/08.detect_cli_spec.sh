@@ -8,8 +8,8 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Detect Docker Compose CLI'
-    Describe 'Success cases'
-        Describe 'CLI : docker compose'
+    Context 'Success cases'
+        Context 'CLI : docker compose'
             Mock docker
                 echo "Docker Compose version v1.29.0"
             End
@@ -24,7 +24,7 @@ Describe 'Detect Docker Compose CLI'
             End
         End
 
-        Describe 'CLI : docker-compose'
+        Context 'CLI : docker-compose'
             Mock docker
                 if [ "$1" = "compose" ]; then
                     return 1
@@ -46,8 +46,8 @@ Describe 'Detect Docker Compose CLI'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'CLI : docker compose'
+    Context 'Error cases'
+        Context 'CLI : docker compose'
             Mock docker
                 echo "Docker Compose version v1.28.0"
             End
@@ -61,7 +61,7 @@ Describe 'Detect Docker Compose CLI'
             End
         End
 
-        Describe 'CLI : docker-compose'
+        Context 'CLI : docker-compose'
             Mock docker
                 if [ "$1" = "compose" ]; then
                     return 1
@@ -81,7 +81,7 @@ Describe 'Detect Docker Compose CLI'
             End
         End
 
-        Describe 'Docker daemon system error'
+        Context 'Docker daemon system error'
             Mock docker
                 return 1
             End
@@ -96,7 +96,7 @@ Describe 'Detect Docker Compose CLI'
             End
         End
 
-        Describe 'Docker Compose system error'
+        Context 'Docker Compose system error'
             Mock docker
                 if [ "$1" = "compose" ]; then
                     return 1
@@ -120,8 +120,8 @@ Describe 'Detect Docker Compose CLI'
 End
 
 Describe 'Detect Java CLI'
-    Describe 'Success cases'
-        Describe 'stdout echo'
+    Context 'Success cases'
+        Context 'stdout echo'
             Mock java
                 echo "openjdk version \"17.0.0\""
             End
@@ -135,7 +135,7 @@ Describe 'Detect Java CLI'
             End
         End
 
-        Describe 'stderr echo'
+        Context 'stderr echo'
             Mock java
                 echo "openjdk version \"17.0.0\"" >&2
             End
@@ -150,8 +150,8 @@ Describe 'Detect Java CLI'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'stdout echo'
+    Context 'Error cases'
+        Context 'stdout echo'
             Mock java
                 echo "openjdk version \"16.9.9\""
             End
@@ -164,7 +164,7 @@ Describe 'Detect Java CLI'
             End
         End
 
-        Describe 'stderr echo'
+        Context 'stderr echo'
             Mock java
                 echo "openjdk version \"16.9.9\"" >&2
             End
@@ -177,7 +177,7 @@ Describe 'Detect Java CLI'
             End
         End
 
-        Describe 'Java system error'
+        Context 'Java system error'
             Mock java
                 return 1
             End
@@ -193,7 +193,7 @@ Describe 'Detect Java CLI'
 End
 
 Describe 'Detect Node CLI'
-    Describe 'Success cases'
+    Context 'Success cases'
         Mock node
             echo "v16.0.0"
         End
@@ -207,8 +207,8 @@ Describe 'Detect Node CLI'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'stdout echo'
+    Context 'Error cases'
+        Context 'stdout echo'
             Mock node
                 echo "v15.9.9"
             End
@@ -221,7 +221,7 @@ Describe 'Detect Node CLI'
             End
         End
 
-        Describe 'Node system error'
+        Context 'Node system error'
             Mock node
                 return 1
             End
@@ -237,7 +237,7 @@ Describe 'Detect Node CLI'
 End
 
 Describe 'Detect Maven CLI'
-    Describe 'Success cases'
+    Context 'Success cases'
         Mock mvn
             echo "Apache Maven 3.5.0"
         End
@@ -251,8 +251,8 @@ Describe 'Detect Maven CLI'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'stdout echo'
+    Context 'Error cases'
+        Context 'stdout echo'
             Mock node
                 echo "Apache Maven 3.4.9"
             End
@@ -265,7 +265,7 @@ Describe 'Detect Maven CLI'
             End
         End
 
-        Describe 'Maven system error'
+        Context 'Maven system error'
             Mock mvn
                 return 1
             End
@@ -281,8 +281,8 @@ Describe 'Detect Maven CLI'
 End
 
 Describe 'Auto-choose system stack'
-    Describe 'Success cases'
-        Describe 'Auto-choose with Docker'
+    Context 'Success cases'
+        Context 'Auto-choose with Docker'
             detect_compatible_available_docker_compose_cli() {
                 docker_compose_cli="docker compose"
                 docker_compose_version="1.29.0"
@@ -299,7 +299,7 @@ Describe 'Auto-choose system stack'
             End
         End
 
-        Describe 'Auto-choose with Java, Maven and Node'
+        Context 'Auto-choose with Java, Maven and Node'
             detect_compatible_available_docker_compose_cli() {
                 return 1
             }
@@ -337,8 +337,8 @@ Describe 'Auto-choose system stack'
         End
     End
 
-    Describe 'Error cases'
-        Describe 'Not any system requirements matched'
+    Context 'Error cases'
+        Context 'Not any system requirements matched'
             detect_compatible_available_docker_compose_cli() {
                 return 1
             }
@@ -364,7 +364,7 @@ Describe 'Auto-choose system stack'
             End
         End
 
-        Describe "Java version not matched when Docker can't be used"
+        Context "Java version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
                 return 1
             }
@@ -390,7 +390,7 @@ Describe 'Auto-choose system stack'
             End
         End
 
-        Describe "Node version not matched when Docker can't be used"
+        Context "Node version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
                 return 1
             }
@@ -416,7 +416,7 @@ Describe 'Auto-choose system stack'
             End
         End
 
-        Describe "Maven version not matched when Docker can't be used"
+        Context "Maven version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
                 return 1
             }
