@@ -8,16 +8,12 @@
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
 Describe 'Wait until temporary runner file is ready'
-    tmp_runner_file_is_removed() {
-        [ ! -f "${TMPDIR:-/tmp}/$1" ]
-    }
-
     It 'directly returns since the process exists, and the temporary file too'
         When call wait_until_tmp_runner_file_exists DirectTest "${TMP_DATA_FILE}" $$ 0
         The status should be success
         The stdout should eq "Waiting for DirectTest to create the ${TMP_DATA_FILE_LOCATION} file (0 seconds) ..."
         The variable DirectTest_checked_tmp_runner_file should eq true
-        Assert tmp_runner_file_is_removed "${TMP_DATA_FILE}"
+        The path "${TMP_DATA_FILE_LOCATION}" should not be exist
     End
 
     Describe 'Wait with tmp file creation'
@@ -37,7 +33,7 @@ Describe 'Wait until temporary runner file is ready'
             The status should be success
             The stdout should eq "Waiting for WaitTest to create the ${TMP_DATA_FILE_LOCATION}_2 file (5 seconds) ..."
             The variable WaitTest_checked_tmp_runner_file should eq true
-            Assert tmp_runner_file_is_removed "${TMP_DATA_FILE}_2"
+            The path "${TMP_DATA_FILE_LOCATION}_2" should not be exist
         End
 
         It "fails since this file doesn't exist within the indicated timeout"
