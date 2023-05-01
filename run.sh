@@ -885,12 +885,12 @@ build() {
 
     if ${build} && [ "${environment}" -eq "${SYSTEM_ENVIRONMENT}" ]; then
       echo "Building packages ..."
-      mvn package -T 3 -DskipTests -DfinalName=vglconfig -f vglconfig/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-      mvn package -T 3 -DskipTests -DfinalName=vglservice -f vglservice/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      mvn clean package -T 3 -DskipTests -DfinalName=vglconfig -f vglconfig/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      mvn clean package -T 3 -DskipTests -DfinalName=vglservice -f vglservice/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        mvn package -T 3 -DskipTests -DfinalName=vgldiscovery -f vgldiscovery/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-        mvn package -T 3 -DskipTests -DfinalName=vglloadbalancer -f vglloadbalancer/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        mvn clean package -T 3 -DskipTests -DfinalName=vgldiscovery -f vgldiscovery/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        mvn clean package -T 3 -DskipTests -DfinalName=vglloadbalancer -f vglloadbalancer/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
       fi
 
       cd vglfront || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
