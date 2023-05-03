@@ -319,14 +319,15 @@ class SystemStackDetector {
         $DockerComposeVersion = ""
         $DockerComposeCli = ""
 
+
         try {
-            & cmd /c "docker info >nul 2>&1"
+            cmd /c "docker info >nul 2>&1"
         } catch {
         }
 
         if ($LASTEXITCODE -eq 0) {
             try {
-                $DockerComposeVersion = & cmd /c "docker compose version 2>nul"
+                $DockerComposeVersion = cmd /c "docker compose version 2>nul"
             } catch {
             }
 
@@ -335,7 +336,7 @@ class SystemStackDetector {
                 $ChoosenSystemStackTag = [SystemStackTag]::Docker
             } else {
                 try {
-                    $DockerComposeVersion = & cmd /c "docker-compose version 2>nul"
+                    $DockerComposeVersion = cmd /c "docker-compose version 2>nul"
                 } catch {
                 }
 
@@ -351,7 +352,7 @@ class SystemStackDetector {
         }
 
         if ($ChoosenSystemStackTag -eq [SystemStackTag]::Docker) {
-            if (($DockerComposeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*$") -and (($DockerComposeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredDockerComposeVersion)) {
+            if (($DockerComposeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($DockerComposeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredDockerComposeVersion)) {
                 return [SystemStackComponent]::new("Docker Compose", $DockerComposeCli, $DockerComposeVersion)
             }
         }
@@ -368,14 +369,14 @@ class SystemStackDetector {
     #>
     static [SystemStackComponent] DetectCompatibleAvailableJavaCli() {
         try {
-            $JavaVersion = & java -version 2>&1
+            $JavaVersion = java -version 2>&1
         } catch {
             # https://github.com/PowerShell/PowerShell/issues/4002
             # https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4380614
             $JavaVersion = $_.Exception.Message
         }
 
-        if (($JavaVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*$") -and (($JavaVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredJavaVersion)) {
+        if (($JavaVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($JavaVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredJavaVersion)) {
             return [SystemStackComponent]::new("Java", "java", $JavaVersion)
         }
 
@@ -391,12 +392,12 @@ class SystemStackDetector {
     #>
     static [SystemStackComponent] DetectCompatibleAvailableMavenCli() {
         try {
-            $MavenVersion = & mvn -version
+            $MavenVersion = mvn -version
         } catch {
             return $null
         }
 
-        if (($MavenVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*$") -and (($MavenVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredMavenVersion)) {
+        if (($MavenVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($MavenVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredMavenVersion)) {
             return [SystemStackComponent]::new("Maven", "mvn", $MavenVersion)
         }
 
@@ -412,12 +413,12 @@ class SystemStackDetector {
     #>
     static [SystemStackComponent] DetectCompatibleAvailableNodeCli() {
         try {
-            $NodeVersion = & node -v 2> $null
+            $NodeVersion = node -v 2> $null
         } catch {
             return $null
         }
 
-        if (($LASTEXITCODE -eq 0) -and ($NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
+        if (($LASTEXITCODE -eq 0) -and ($NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
             return [SystemStackComponent]::new("Node", "node", $NodeVersion)
         }
 
@@ -477,6 +478,10 @@ class SystemStack {
             Stack components list
     #>
     SystemStack([SystemStackTag] $Tag, [SystemStackComponent[]] $SystemStackComponents) {
+        if (($null -eq $SystemStackComponents) -or ($SystemStackComponents.Length -eq 0)) {
+            throw [ArgumentException]::new("System stack must contain at least one stack component")
+        }
+
         foreach ($SystemStackComponent in $SystemStackComponents) {
             if ($null -eq $SystemStackComponent) {
                 throw [ArgumentNullException]::new("Stack components cannot be null")
@@ -508,7 +513,7 @@ class SystemStack {
 #>
 class SystemStackComponent {
     # Associated command tag
-    [ValidateNotNull()] [String[]] $AssociatedTag
+    [ValidateNotNullOrEmpty()] [String] $AssociatedTag
 
     # Component command
     [ValidateNotNullOrEmpty()] [String[]] $Command

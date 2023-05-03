@@ -20,6 +20,10 @@ Describe 'Docker build (no Load Balancing)'
         [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
     }
 
+    exit_script() {
+        return "${1:-0}"
+    }
+
     BeforeEach "source_only=false"
 
     Context 'Abstract (mocked) build behavior check'
@@ -54,23 +58,47 @@ Describe 'Docker build (no Load Balancing)'
                 docker_compose_cli="docker"
             End
 
-            Mock eval_script
-                if echo "$1" | grep -q "docker-compose-no-load-balancing.yml" && echo "$1" | grep -q build ; then
-                    echo "Docker build (no load-balancing) triggered"
-                fi
+            Context 'Successful build'
+                eval_script() {
+                    if echo "$1" | grep -q "docker-compose-no-load-balancing.yml" && echo "$1" | grep -q build ; then
+                        echo "Docker build (no load-balancing) triggered"
+                    fi
+                }
+                    
+                It 'checks that Docker is triggered'
+                    When call main --no-start --no-load-balancing
+                    The status should be success
+                    The lines of stdout should equal 2
+                    The line 1 of stdout should eq "Building packages and images ..."
+                    The line 2 of stdout should eq "Docker build (no load-balancing) triggered"
+                    The variable build should eq true
+                    The variable start should eq false
+                    The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
+                    The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                    Assert current_location_is_at_the_base_of_the_project
+                End
             End
-                
-            It 'checks that Docker is triggered'
-                When call main --no-start --no-load-balancing
-                The status should be success
-                The lines of stdout should equal 2
-                The line 1 of stdout should eq "Building packages and images ..."
-                The line 2 of stdout should eq "Docker build (no load-balancing) triggered"
-                The variable build should eq true
-                The variable start should eq false
-                The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
-                The variable environment should eq "${DOCKER_ENVIRONMENT}"
-                Assert current_location_is_at_the_base_of_the_project
+
+            Context 'Failed build'
+                eval_script() {
+                    if echo "$1" | grep -q "docker-compose-no-load-balancing.yml" && echo "$1" | grep -q build ; then
+                        echo "Docker build (no load-balancing) triggered"
+                        return 127
+                    fi
+                }
+                    
+                It 'checks that Docker build fails correctly'
+                    When call main --no-start --no-load-balancing
+                    The status should eq 127
+                    The lines of stdout should equal 2
+                    The line 1 of stdout should eq "Building packages and images ..."
+                    The line 2 of stdout should eq "Docker build (no load-balancing) triggered"
+                    The variable build should eq true
+                    The variable start should eq false
+                    The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
+                    The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                    Assert current_location_is_at_the_base_of_the_project
+                End
             End
         End
     End

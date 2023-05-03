@@ -172,23 +172,47 @@ ${REQUIREMENTS_TEXT}"
                 check_no_load_balancing_packages() {
                     true
                 }
-
-                It 'should process the build even if there are not any changes in the project'
-                    When call main --no-start
-                    The status should be success
-                    The lines of stdout should equal 6
-                    The line 1 of stdout should eq "Building packages ..."
-                    The line 2 of stdout should eq vglconfig
-                    The line 3 of stdout should eq vglservice
-                    The line 4 of stdout should eq vgldiscovery
-                    The line 5 of stdout should eq vglloadbalancer
-                    The line 6 of stdout should eq vglfront
-                    The variable build should eq true
-                    The variable start should eq false
-                    The variable mode should eq "${LOAD_BALANCING_MODE}"
-                    The variable environment should eq "${SYSTEM_ENVIRONMENT}"
-                    Assert current_location_is_at_the_base_of_the_project
+                
+                Context 'Successful build'
+                    It 'should process the build even if there are not any changes in the project'
+                        When call main --no-start
+                        The status should be success
+                        The lines of stdout should equal 6
+                        The line 1 of stdout should eq "Building packages ..."
+                        The line 2 of stdout should eq vglconfig
+                        The line 3 of stdout should eq vglservice
+                        The line 4 of stdout should eq vgldiscovery
+                        The line 5 of stdout should eq vglloadbalancer
+                        The line 6 of stdout should eq vglfront
+                        The variable build should eq true
+                        The variable start should eq false
+                        The variable mode should eq "${LOAD_BALANCING_MODE}"
+                        The variable environment should eq "${SYSTEM_ENVIRONMENT}"
+                        Assert current_location_is_at_the_base_of_the_project
+                    End
                 End
+
+                Context 'Failed build'
+                    mvn() {
+                        return 127
+                    }
+
+                    npm() {
+                        return 127
+                    }
+
+                    It 'should fail the build correctly'
+                        When call main --no-start
+                        The status should eq 127
+                        The lines of stdout should equal 1
+                        The line 1 of stdout should eq "Building packages ..."
+                        The variable build should eq true
+                        The variable start should eq false
+                        The variable mode should eq "${LOAD_BALANCING_MODE}"
+                        The variable environment should eq "${SYSTEM_ENVIRONMENT}"
+                        Assert current_location_is_at_the_base_of_the_project
+                    End
+                End 
             End
         End
     End

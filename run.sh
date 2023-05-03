@@ -680,8 +680,8 @@ detect_compatible_available_docker_compose_cli() {
       return 127
     fi
   fi
-
-  if [ -n "${docker_compose_cli}" ] && docker_compose_version="$(echo "${docker_compose_version}" | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\([0-9]\+\).*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_DOCKER_COMPOSE_VERSION}")" && [ -n "${docker_compose_version}" ]; then
+  
+  if [ -n "${docker_compose_cli}" ] && docker_compose_version="$(echo "${docker_compose_version}" | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\{0,1\}\([0-9]\+\)\{0,1\}.*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_DOCKER_COMPOSE_VERSION}")" && [ -n "${docker_compose_version}" ]; then
     echo "${docker_compose_cli}:${docker_compose_version}"
   else
     docker_detection_error=true
@@ -704,7 +704,7 @@ detect_compatible_available_java_cli() {
     return 126
   fi
 
-  if java_version="$(printf "%s" "${java_version}" | head -n 1 | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\([0-9]\+\).*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_JAVA_VERSION}")" && [ -n "${java_version}" ]; then
+  if java_version="$(printf "%s" "${java_version}" | head -n 1 | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\{0,1\}\([0-9]\+\)\{0,1\}.*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_JAVA_VERSION}")" && [ -n "${java_version}" ]; then
     java_cli="java"
 
     echo "${java_cli}:${java_version}"
@@ -728,7 +728,7 @@ detect_compatible_available_maven_cli() {
     return 126
   fi
 
-  if maven_version="$(printf "%s" "${maven_version}" | head -n 1 | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\([0-9]\+\).*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_MAVEN_VERSION}")" && [ -n "${maven_version}" ]; then
+  if maven_version="$(printf "%s" "${maven_version}" | head -n 1 | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\{0,1\}\([0-9]\+\)\{0,1\}.*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_MAVEN_VERSION}")" && [ -n "${maven_version}" ]; then
     maven_cli="maven"
 
     echo "${maven_cli}:${maven_version}"
@@ -752,7 +752,7 @@ detect_compatible_available_node_cli() {
     return 126
   fi
 
-  if node_version="$(printf "%s" "${node_version}" | sed -n 's/^[^0-9]*\([0-9][0-9.]*[0-9]\).*$/\1/p' | awk -F"." "${AWK_REQUIRED_NODE_VERSION}")" && [ -n "${node_version}" ]; then
+  if node_version="$(printf "%s" "${node_version}" | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\{0,1\}\([0-9]\+\)\{0,1\}.*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_NODE_VERSION}")" && [ -n "${node_version}" ]; then
     node_cli="node"
 
     echo "${node_cli}:${node_version}"
@@ -1273,8 +1273,11 @@ EOF
     while ! queue_exit; do true; done
 
     # Wait for all processes to terminate in case of error, do not exit immediately. Allow another attempt.
-    echo "Waiting for processes to shut down ..."
-    echo "If the processes do not terminate within 20 seconds, press CTRL-C again to try to force the processes to shut down"
+    if [ -n "${processes}" ]; then
+      echo "Waiting for processes to shut down ..."
+      echo "If the processes do not terminate within 20 seconds, press CTRL-C again to try to force the processes to shut down"
+    fi
+
     while ! wait || ! (
       code=$?
       if [ ${code} -eq 130 ] || [ ${code} -eq 143 ]; then exit 1; else exit 0; fi
@@ -1382,10 +1385,10 @@ init_shell_params() {
 # shellcheck disable=SC2016
 main() {
   # Versions related flags
-  AWK_REQUIRED_DOCKER_COMPOSE_VERSION='{ if (($1 > 1) || (($1 == 1) && ($2 >= 29))) { print $0 } }'
-  AWK_REQUIRED_JAVA_VERSION='{ if ($1 >= 17) { print $0 } }'
-  AWK_REQUIRED_MAVEN_VERSION='{ if (($1 > 3) || (($1 == 3) && ($2 >= 5))) { print $0 } }'
-  AWK_REQUIRED_NODE_VERSION='{ if ($1 >= 16) { print $0 } }'
+  AWK_REQUIRED_DOCKER_COMPOSE_VERSION='{ if (($1 > 1) || (($1 == 1) && ($2 >= 29))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
+  AWK_REQUIRED_JAVA_VERSION='{ if ($1 >= 17) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
+  AWK_REQUIRED_MAVEN_VERSION='{ if (($1 > 3) || (($1 == 3) && ($2 >= 5))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
+  AWK_REQUIRED_NODE_VERSION='{ if ($1 >= 16) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
   REQUIREMENTS_TEXT="Required : Docker Compose >= 1.29 or Java >= 17 with Maven >= 3.5 and Node >= 16"
 
   # Demo deployment modes

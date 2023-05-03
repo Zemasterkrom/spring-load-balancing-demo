@@ -28,6 +28,15 @@ Describe 'Cleanup logic check'
         return "${1:-0}"
     }
 
+    Context 'Basic cleanup only without any registered process'
+        It 'successfully stops the script without taking any advanced action'
+            When call cleanup 0 "${AUTOMATED_CLEANUP}" 0
+            The status should be success
+            The lines of stdout should equal 0
+            The variable cleanup_count should eq 0
+        End
+    End
+
     Context 'Basic cleanup only'
         check_process_existence() {
             if [ -z "${check_process_existence_exec_count}" ]; then
