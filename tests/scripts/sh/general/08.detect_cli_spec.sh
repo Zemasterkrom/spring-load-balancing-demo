@@ -10,10 +10,11 @@
 Describe 'Detect Docker Compose CLI'
     Context 'Success cases with valid and compatible versions'
         Parameters
+            "Docker Compose version v1.29.0 1.0.0" "1.29.0"
             "Docker Compose version v1.29.0" "1.29.0"
             "v1.29.1" "1.29.1"
-            "1.29" "1.29"
-            "Docker Compose version v2.0" "2.0"
+            "1.29" "1.29.0"
+            "Docker Compose version v2.0" "2.0.0"
             "v2.0.0" "2.0.0"
             "2.0.1" "2.0.1"
             "Docker Compose version v2.1.0" "2.1.0"
@@ -64,6 +65,7 @@ Describe 'Detect Docker Compose CLI'
         Context 'Invalid / incompatible versions'
             Parameters
                 "No version"
+                "Docker Compose version"
                 "Docker Compose version 2-alpha"
                 "Docker Compose version 2a.6-alpha"
                 "Docker Compose version a.2-alpha"
@@ -89,7 +91,7 @@ Describe 'Detect Docker Compose CLI'
                     echo "${version_string}"
                 End
                 
-                It "fails since the Docker Compose version isn't compatible ($1 : $2)"
+                It "fails since the Docker Compose version isn't compatible ($1)"
                     export version_string="$1"
                     When call detect_compatible_available_docker_compose_cli
                     The status should eq 127
@@ -107,10 +109,11 @@ Describe 'Detect Docker Compose CLI'
                 End
 
                 Mock docker-compose
-                    echo "Docker Compose version v1.28.0"
+                    echo "${version_string}"
                 End
                 
-                It "fails since the Docker Compose version isn't compatible ($1 : $2)"
+                It "fails since the Docker Compose version isn't compatible ($1)"
+                    export version_string="$1"
                     When call detect_compatible_available_docker_compose_cli
                     The status should eq 127
                     The variable docker_compose_cli should be blank
@@ -161,6 +164,7 @@ End
 Describe 'Detect Java CLI'
     Context 'Success cases with valid and compatible versions'
         Parameters
+            'openjdk version "17.0.0" "10.0.0"' "17.0.0"
             'openjdk version "17.0.0"' "17.0.0"
             'openjdk version 17.0.0' "17.0.0"
             'openjdk version "17.0.1"' "17.0.1"
@@ -169,8 +173,8 @@ Describe 'Detect Java CLI'
             'openjdk version 17.1.1' "17.1.1"
             'openjdk version "18.0.0"' "18.0.0"
             'openjdk version 18.0.0' "18.0.0"
-            'openjdk version "17.0"' "17.0"
-            'openjdk version 17.0' "17.0"
+            'openjdk version "17.0"' "17.0.0"
+            'openjdk version 17.0' "17.0.0"
             'openjdk version "17.0.1"' "17.0.1"
             'openjdk version 17.0.1' "17.0.1"
             'openjdk version 17.0.1-alpha' "17.0.1"
@@ -247,7 +251,7 @@ Describe 'Detect Java CLI'
                     echo "${version_string}"
                 End
 
-                It "fails since the Java version isn't compatible ($1 : $2)"
+                It "fails since the Java version isn't compatible ($1)"
                     export version_string="$1"
                     When call detect_compatible_available_java_cli
                     The status should eq 127
@@ -261,7 +265,7 @@ Describe 'Detect Java CLI'
                     echo "${version_string}" >&2
                 End
 
-                It "fails since the Java version isn't compatible ($1 : $2)"
+                It "fails since the Java version isn't compatible ($1)"
                     export version_string="$1"
                     When call detect_compatible_available_java_cli
                     The status should eq 127
@@ -289,6 +293,9 @@ End
 Describe 'Detect Node CLI'
     Context 'Success cases with valid and compatible versions'
         Parameters
+            "v16.0 10.0" "16.0.0"
+            "v16.0" "16.0.0"
+            "v16.0-alpha" "16.0.0"
             "v16.0.0" "16.0.0"
             "v16.0.0-alpha" "16.0.0"
             "16.0.0" "16.0.0"
@@ -326,6 +333,7 @@ Describe 'Detect Node CLI'
     Context 'Error cases'
         Context 'Invalid / incompatible versions'
             Parameters
+                "v"
                 "v15.9.9-alpha"
                 "v15.9.9"
                 "v15.9.0"
@@ -366,7 +374,7 @@ Describe 'Detect Node CLI'
                     echo "${version_string}"
                 End
 
-                It "fails since the Node version isn't compatible ($1 : $2)"
+                It "fails since the Node version isn't compatible ($1)"
                     export version_string="$1"
                     When call detect_compatible_available_node_cli
                     The status should eq 127
@@ -394,7 +402,8 @@ End
 Describe 'Detect Maven CLI'
     Context 'Success cases with valid and compatible versions'
         Parameters
-            "Apache Maven 3.5" "3.5"
+            "Apache Maven 3.5 1.0" "3.5.0"
+            "Apache Maven 3.5" "3.5.0"
             "Apache Maven 3.5.0" "3.5.0"
             "Apache Maven 3.5.2" "3.5.2"
             "Apache Maven 3.5.3-alpha-1" "3.5.3"
@@ -435,6 +444,7 @@ Describe 'Detect Maven CLI'
     Context 'Error cases'
         Context 'Invalid / incompatible versions'
             Parameters
+                "Apache Maven"
                 "Apache Maven 3"
                 "Apache Maven 3.a"
                 "Apache Maven 3.a-alpha"
@@ -467,7 +477,7 @@ Describe 'Detect Maven CLI'
                     echo "Apache Maven 3.4.9"
                 End
 
-                It "fails since the Maven version isn't compatible ($1 : $2)"
+                It "fails since the Maven version isn't compatible ($1)"
                     When call detect_compatible_available_node_cli
                     The status should eq 127
                     The variable maven_cli should be blank

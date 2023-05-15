@@ -319,7 +319,6 @@ class SystemStackDetector {
         $DockerComposeVersion = ""
         $DockerComposeCli = ""
 
-
         try {
             cmd /c "docker info >nul 2>&1"
         } catch {
@@ -418,7 +417,7 @@ class SystemStackDetector {
             return $null
         }
 
-        if (($LASTEXITCODE -eq 0) -and ($NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
+        if (($NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
             return [SystemStackComponent]::new("Node", "node", $NodeVersion)
         }
 
@@ -800,6 +799,7 @@ class BackgroundTask {
 
     # Flags addressing the different error cases
     static [Int] $SuccessfullyStopped = 0
+    static [Int] $TemporaryFileWaitUncompleted = -1
     static [Int] $TemporaryFileWaitCompleted = 0
     static [Int] $ProcessHasAlreadyExited = 3
     static [Int] $TemporaryFileWaitTimeoutError = 4
@@ -839,11 +839,15 @@ class BackgroundTask {
         $this.TaskStartInfo = $TaskStartInfo
         $this.TaskStopInfo = $TaskStopInfo
         $this.Name = $Name
-        $this.TemporaryFileName = $this.Name.ToLower() + "_" + [Guid]::NewGuid().ToString()
         $this.CheckedTemporaryFileExistence = $false
-        $this.CheckedTemporaryFileExistenceState = [BackgroundTask]::TemporaryFileWaitCompleted
+        $this.CheckedTemporaryFileExistenceState = [BackgroundTask]::TemporaryFileWaitUncompleted
         $this.TemporaryFileCheckEnabled = $TemporaryFileCheckEnabled
         $this.StopCallAlreadyExecuted = $false
+        $this.TemporaryFileName = if ($TemporaryFileCheckEnabled) {
+            $this.Name.ToLower() + "_" + [Guid]::NewGuid().ToString()
+        } else {
+            ""
+        }
 
         if ($null -eq $this.TaskStopInfo.StandardStopTimeout) {
             $this.TaskStopInfo.StandardStopTimeout = [BackgroundTask]::StandardStopTimeout
@@ -917,6 +921,7 @@ class BackgroundTask {
 
             return 0
         } catch {
+            $this.StopCallAlreadyExecuted = $true
             $this.GracefulStop()
             throw $_
         }
@@ -970,52 +975,72 @@ class BackgroundTask {
     #>
     [Int] SyncWithTemporaryFile([System.Management.Automation.ScriptBlock] $HasExited, [Int] $TemporaryFileWaitTimeout) {
         try {
-            $CopiedTemporaryFileWaitTimeout = $TemporaryFileWaitTimeout
+            if ($this.TemporaryFileCheckEnabled) {
+                $CopiedTemporaryFileWaitTimeout = $TemporaryFileWaitTimeout
 
-            if ($null -eq $CopiedTemporaryFileWaitTimeout) {
-                $CopiedTemporaryFileWaitTimeout = [BackgroundTask]::TemporaryFileWaitTimeout
-            }
-
-            if ($CopiedTemporaryFileWaitTimeout -lt 0) {
-                throw [ArgumentException]::new("Invalid timeout. Temporary file wait timeout cannot be negative.")
-            }
-
-            if ($null -eq $HasExited) {
-                $HasExited = {
-                    return -not($this.IsAlive())
+                if ($null -eq $CopiedTemporaryFileWaitTimeout) {
+                    $CopiedTemporaryFileWaitTimeout = [BackgroundTask]::TemporaryFileWaitTimeout
                 }
-            }
-
-            if (($this.TemporaryFileCheckEnabled) -and (-not($this.CheckedTemporaryFileExistence))) {
-                Write-Information "Waiting for $( $this.Name ) to create the $env:TEMP\$( $this.TemporaryFileName ) ... ($TemporaryFileWaitTimeout seconds)"
-                $WaitTime = 0
-                $ReturnCode = 0
-
-                while (-not(Test-Path -Type Leaf "$env:TEMP\$( $this.TemporaryFileName )")) {
-                    if (& $HasExited) {
-                        Write-Warning "$( $this.Name ) has already exited"
-                        $ReturnCode = [BackgroundTask]::ProcessHasAlreadyExited
-                        break
+    
+                if ($CopiedTemporaryFileWaitTimeout -lt 0) {
+                    throw [ArgumentException]::new("Invalid timeout. Temporary file wait timeout cannot be negative.")
+                }
+    
+                if ($null -eq $HasExited) {
+                    $HasExited = {
+                        return -not($this.IsAlive())
+                    }
+                }
+    
+                if (($this.TemporaryFileCheckEnabled) -and (-not($this.CheckedTemporaryFileExistence))) {
+                    Write-Information "Waiting for $( $this.Name ) to create the $env:TEMP\$( $this.TemporaryFileName ) file ... ($TemporaryFileWaitTimeout seconds)"
+                    $WaitTime = 0
+                    $ReturnCode = 0
+    
+                    while (-not(Test-Path -Type Leaf "$env:TEMP\$( $this.TemporaryFileName )")) {
+                        if (& $HasExited) {
+                            Write-Warning "$( $this.Name ) has already exited"
+                            $ReturnCode = [BackgroundTask]::ProcessHasAlreadyExited
+                            break
+                        }
+    
+                        if ($WaitTime -eq $CopiedTemporaryFileWaitTimeout) {
+                            Write-Error "Failed to wait for the creation of the $env:TEMP\$( $this.TemporaryFileName ) file" -ErrorAction Continue
+                            $ReturnCode = [BackgroundTask]::TemporaryFileWaitTimeoutError
+                            break
+                        }
+    
+                        Start-Sleep -Seconds 1
+                        $WaitTime++
                     }
 
-                    if ($WaitTime -eq $CopiedTemporaryFileWaitTimeout) {
-                        Write-Error "Failed to wait for the creation of the $env:TEMP\$( $this.TemporaryFileName ) file" -ErrorAction Continue
-                        $ReturnCode = [BackgroundTask]::TemporaryFileWaitTimeoutError
-                        break
+                    $Code = $?
+                    
+                    try {
+                        if (Test-Path -Type Leaf "$env:TEMP\$( $this.TemporaryFileName )") {
+                            Remove-Item "$env:TEMP\$( $this.TemporaryFileName )" -ErrorAction Continue
+                        }
+
+                        $Code = $?
+                    } catch {
+                        $Code = $?
+                        Write-Warning "Failed removing the $env:TEMP\$( $this.TemporaryFileName ) temporary file"
+                    } finally {
+                        if ($ReturnCode -ne [BackgroundTask]::TemporaryFileWaitTimeoutError) {        
+                            $this.CheckedTemporaryFileExistenceState = if ($Code) {
+                                $ReturnCode
+                            } else {
+                                [BackgroundTask]::FailedRemovingTmpFile
+                            }
+                        } else {
+                            $this.CheckedTemporaryFileExistenceState = $ReturnCode
+                        }
+    
+                        $this.CheckedTemporaryFileExistence = $true
                     }
-
-                    Start-Sleep -Seconds 1
-                    $WaitTime++
                 }
-
-                Remove-Item "$env:TEMP\$( $this.TemporaryFileName )"
-
-                $this.CheckedTemporaryFileExistenceState = if ($?) {
-                    $ReturnCode
-                } else {
-                    [BackgroundTask]::FailedRemovingTmpFile
-                }
-                $this.CheckedTemporaryFileExistence = $true
+            } else {
+                $this.CheckedTemporaryFileExistenceState = [BackgroundTask]::TemporaryFileWaitUncompleted
             }
         } catch {
             Write-Error "Failed running the temporary file creation check loop of $env:TEMP\$( $this.TemporaryFileName )" -ErrorAction Continue
@@ -1099,7 +1124,6 @@ class BackgroundProcess: BackgroundTask {
             Write-Information "Killing the $( $this.Name ) process with PID $( $this.Process.Id )"
         }
 
-
         $SyncCode = $this.SyncWithTemporaryFile()
 
         if (($SyncCode -eq [BackgroundTask]::TemporaryFileWaitCompleted) -and (-not($this.StopCallAlreadyExecuted))) {
@@ -1141,10 +1165,11 @@ class BackgroundProcess: BackgroundTask {
     #>
     hidden [Void] StopProcessTree() {
         $Success = $true
+        $AdditionalErrorMessage = ""
 
         try {
             # If there are child processes, kill the entire process tree
-            $ChildProcesses = Get-CimInstance -Class Win32_Process -Filter "ParentProcessId = '$( $this.Process.Id )'"
+            $ChildProcesses = Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$( $this.Process.Id )'"
 
             if ($null -eq $ChildProcesses) {
                 $ChildProcesses = @()
@@ -1165,7 +1190,7 @@ class BackgroundProcess: BackgroundTask {
                 # Process the child processes kill recursively using a stack
                 while ($ChildProcessesStack.Count -gt 0) {
                     $CurrentChildProcess = $ChildProcessesStack.Pop()
-                    $NextChildProcesses = Get-CimInstance -Class Win32_Process -Filter "ParentProcessId = '$( $CurrentChildProcess.ProcessId )'"
+                    $NextChildProcesses = Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$( $CurrentChildProcess.ProcessId )'"
 
                     if ($null -eq $NextChildProcesses) {
                         $NextChildProcesses = @()
@@ -1184,24 +1209,25 @@ class BackgroundProcess: BackgroundTask {
                     try {
                         Write-Information "Killing the process with PID $( $CurrentChildProcess.ProcessId )"
 
-                        $CurrentChildProcess | Invoke-WmiMethod -Name Terminate > $null
-
-                        if (-not($?)) {
-                            throw [StopBackgroundProcessException]::new("WmiMethod Terminate failed")
-                        }
-
                         try {
-                            $PSChildProcess = Get-Process -Id $CurrentChildProcess.ProcessId
+                            $CurrentChildProcess = Get-Process -Id $CurrentChildProcess.ProcessId
                         } catch {
                             continue
                         }
+                        
+                        $CurrentChildProcess | Stop-Process -Force
 
-                        $PSChildProcess | Wait-Process -Timeout $this.TaskStopInfo.KillTimeout > $null
+                        if (-not($?)) {
+                            throw [StopBackgroundProcessException]::new("Stop-Process failed")
+                        }
+
+                        $CurrentChildProcess | Wait-Process -Timeout $this.TaskStopInfo.KillTimeout > $null
 
                         if (-not($?)) {
                             throw [StopBackgroundProcessException]::new("Failed waiting for the process to exit within $( $this.TaskStopInfo.KillTimeout ) seconds")
                         }
                     } catch {
+                        $AdditionalErrorMessage += "Failed to kill the process with PID $( $CurrentChildProcess.ProcessId ) : $( $_.Exception.Message ) "
                         Write-Error "Failed to kill the process with PID $( $CurrentChildProcess.ProcessId ) : $( $_.Exception.Message )" -ErrorAction Continue
                         $Success = $false
                     }
@@ -1222,6 +1248,7 @@ class BackgroundProcess: BackgroundTask {
                     throw [StopBackgroundProcessException]::new("Failed waiting for the process to terminate within $( $this.TaskStopInfo.KillTimeout ) seconds")
                 }
             } catch {
+                $AdditionalErrorMessage += "Failed to kill the process with PID $( $this.Process.Id ) : $( $_.Exception.Message ) "
                 Write-Error "Failed to kill the process with PID $( $this.Process.Id ) : $( $_.Exception.Message )" -ErrorAction Continue
                 $Success = $false
             }
@@ -1230,7 +1257,7 @@ class BackgroundProcess: BackgroundTask {
         }
 
         if (-not($Success)) {
-            throw [StopBackgroundProcessException]::new("Failed to kill the process tree of the process with PPID $( $this.Process.Id )")
+            throw [StopBackgroundProcessException]::new("Failed to kill the process tree of the process with PPID $( $this.Process.Id ) : $AdditionalErrorMessage")
         }
     }
 
@@ -1262,9 +1289,12 @@ class BackgroundProcess: BackgroundTask {
             }
         }
 
-        if (Test-Path "$env:TEMP\$( $this.TemporaryFileName )" -ErrorAction SilentlyContinue) {
-            Remove-Item "$env:TEMP\$( $this.TemporaryFileName )" -ErrorAction SilentlyContinue
+        if ($this.TemporaryFileCheckEnabled) {
+            if (Test-Path "$env:TEMP\$( $this.TemporaryFileName )" -ErrorAction SilentlyContinue) {
+                Remove-Item "$env:TEMP\$( $this.TemporaryFileName )" -ErrorAction SilentlyContinue
+            }
         }
+        
         $Success = if ($?) {
             $Success
         } else {
@@ -1527,7 +1557,7 @@ class BackgroundTaskFactory {
         .PARAM Name
             Name of the background task
      #>
-    BackgroundTaskFactory([String] $TemporaryFileCheckEnabled) {
+    BackgroundTaskFactory([Boolean] $TemporaryFileCheckEnabled) {
         $this.TemporaryFileCheckEnabled = $TemporaryFileCheckEnabled
     }
 
@@ -1585,6 +1615,7 @@ class Runner {
             --source-only : don't run the demo at all. Useful for testing.
     #>
     static [Void] Main([String[]] $Options) {
+        [SystemStackDetector]::ChoosenSystemStack = $null
         [Runner]::Environment = [Environment]::new()
         [Runner]::Tasks = @()
 

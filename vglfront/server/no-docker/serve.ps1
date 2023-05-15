@@ -185,7 +185,7 @@ function Stop-ProcessTree {
             [Parameter(Mandatory = $true)] [Microsoft.Management.Infrastructure.CimInstance] $ChildProcess
         )
 
-        $error = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ChildProcess.ProcessId )'" | ForEach-Object {
+        $HasError = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ChildProcess.ProcessId )'" | ForEach-Object {
             Stop-NestedProcessTree -ChildProcess $_
         }
 
@@ -200,14 +200,14 @@ function Stop-ProcessTree {
         }
     }
 
-    $error = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'" -ErrorAction SilentlyContinue | ForEach-Object {
+    $HasError = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'" -ErrorAction SilentlyContinue | ForEach-Object {
         Stop-NestedProcessTree -ChildProcess $_
     }
 
     Write-Information "--> Stopping the process with PID $( $ParentProcess.Id )"
     $ParentProcess | Stop-Process -Force -ErrorAction SilentlyContinue
 
-    if ($error -or (-not($?))) {
+    if ($HasError -or (-not($?))) {
         Write-Information "--> Failed to stop the process with PID $( $ParentProcess.Id )"
         throw "--> Failed to stop the process with PID $( $ParentProcess.Id )"
     }

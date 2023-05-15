@@ -1385,10 +1385,10 @@ init_shell_params() {
 # shellcheck disable=SC2016
 main() {
   # Versions related flags
-  AWK_REQUIRED_DOCKER_COMPOSE_VERSION='{ if (($1 > 1) || (($1 == 1) && ($2 >= 29))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
-  AWK_REQUIRED_JAVA_VERSION='{ if ($1 >= 17) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
-  AWK_REQUIRED_MAVEN_VERSION='{ if (($1 > 3) || (($1 == 3) && ($2 >= 5))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
-  AWK_REQUIRED_NODE_VERSION='{ if ($1 >= 16) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2 } } }'
+  AWK_REQUIRED_DOCKER_COMPOSE_VERSION='{ if (($1 > 1) || (($1 == 1) && ($2 >= 29))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2".0" } } }'
+  AWK_REQUIRED_JAVA_VERSION='{ if ($1 >= 17) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2".0" } } }'
+  AWK_REQUIRED_MAVEN_VERSION='{ if (($1 > 3) || (($1 == 3) && ($2 >= 5))) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2".0" } } }'
+  AWK_REQUIRED_NODE_VERSION='{ if ($1 >= 16) { if ($3 != "") { print $1"."$2"."$3 } else { print $1"."$2".0" } } }'
   REQUIREMENTS_TEXT="Required : Docker Compose >= 1.29 or Java >= 17 with Maven >= 3.5 and Node >= 16"
 
   # Demo deployment modes
