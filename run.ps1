@@ -857,14 +857,44 @@ class BackgroundTask {
             $this.TaskStopInfo.KillTimeout = [BackgroundTask]::KillTimeout
         }
 
+        $this.PreCheckSetup()
+        $this.CheckTaskStartInfo()
+        $this.CheckBasicTaskStopInfo()
+        $this.CheckTaskStopInfo()
+    }
+
+    <#
+        .DESCRIPTION
+            Method that contains the pre check setup logic
+    #>
+    [Void] PreCheckSetup() {}
+    
+
+    <#
+        .DESCRIPTION
+            Returns only if the current task start info is valid, raises an exception otherwise
+    #>
+    [Void] CheckTaskStartInfo() {}
+
+    <#
+        .DESCRIPTION
+            Returns only if the current basic task stop info is valid, raises an exception otherwise
+    #>
+    [Void] CheckBasicTaskStopInfo() {
         if (($this.TaskStopInfo.StandardStopTimeout -isnot [Int]) -or ($this.TaskStopInfo.StandardStopTimeout -lt 0)) {
-            throw [ArgumentException]::new("Invalid standard timeout. Standard timeout cannot be negative.")
+            throw [InvalidOperationException]::new("Invalid standard timeout. Standard timeout cannot be negative.")
         }
 
         if (($this.TaskStopInfo.KillTimeout -isnot [Int]) -or ($this.TaskStopInfo.KillTimeout -lt 0)) {
-            throw [ArgumentException]::new("Invalid force kill timeout. Force kill timeout cannot be negative.")
+            throw [InvalidOperationException]::new("Invalid force kill timeout. Force kill timeout cannot be negative.")
         }
     }
+
+    <#
+        .DESCRIPTION
+            Returns only if the current task stop info is valid, raises an exception otherwise
+    #>
+    [Void] CheckTaskStopInfo() {}
 
     <#
         .DESCRIPTION
@@ -886,6 +916,7 @@ class BackgroundTask {
     #>
     [Void] Start() {
         if (-not($this.IsAlive())) {
+            $this.CheckTaskStartInfo()
             $this.StartIfNotAlive()
             $this.StopCallAlreadyExecuted = $false
         }
@@ -911,6 +942,9 @@ class BackgroundTask {
     #>
     [Int] Stop() {
         try {
+            $this.CheckBasicTaskStopInfo()
+            $this.CheckTaskStopInfo()
+
             if ( $this.CanStop()) {
                 $StopCode = $this.StopIfAlive()
                 $this.StopCallAlreadyExecuted = $true
@@ -1359,6 +1393,20 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
         }), "$( $this.Name )DockerComposeOrchestrator")
     }
 
+    [Boolean] IgnoreInstantiationTaskStartInfoCheck() {
+        return $true
+    }
+
+    [Void] CheckTaskStartInfo() {
+        if ((-not($this.DockerComposeCli)) -or ($this.DockerComposeCli.SystemStackComponents.Length -lt 1)) {
+            throw [System.Management.Automation.CommandNotFoundException]::new("No compatible and available Docker Compose version found. Requires Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ).")
+        }
+
+        if ($this.TaskStartInfo.Options -isnot [Array]) {
+            throw [ArgumentException]::new("Docker Compose start options must be passed as an array")
+        }
+    }
+
     [Boolean] IsAlive() {
         return (($isRunning = & cmd /c $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ps $this.TaskStartInfo.ServiceName --services --filter "status=running" 2`>`&1) -and (-not([String]::IsNullOrWhiteSpace($isRunning)))) -or
                 (($isRestarting = & cmd /c $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ps $this.TaskStartInfo.ServiceName --services --filter "status=restarting" 2`>`&1) -and (-not([String]::IsNullOrWhiteSpace($isRestarting)))) -or
@@ -1441,11 +1489,27 @@ class BackgroundJob: BackgroundTask {
             Enable or disable the temporary file check
     #>
     BackgroundJob([Hashtable] $JobStartInfo, [Hashtable] $JobStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($JobStartInfo, $JobStopInfo, $Name, $TemporaryFileCheckEnabled) {
-        if ($this.TaskStartInfo.ScriptBlock -isnot [ScriptBlock]) {
-            throw [ArgumentException]::new("Incompatible ScriptBlock found. Background jobs must be associated to an init ScriptBlock.")
+        $this.Process = $null
+    }
+
+    [Void] PreCheckSetup() {
+        if ($null -eq $this.TaskStartInfo.ScriptBlock) {
+            $this.TaskStartInfo.ScriptBlock = {}
         }
 
-        $this.Process = $null
+        if ($null -eq $this.TaskStartInfo.ArgumentList) {
+            $this.TaskStartInfo.ArgumentList = @()
+        }
+    }
+
+    [Void] CheckTaskStartInfo() {
+        if ($this.TaskStartInfo.ScriptBlock -isnot [ScriptBlock]) {
+            throw [InvalidOperationException]::new("Incompatible ScriptBlock found. Background jobs must be associated to an init ScriptBlock.")
+        }
+
+        if ($this.TaskStartInfo.ArgumentList -isnot [Array]) {
+            throw [InvalidOperationException]::new("Incompatible ArgumentList found. If used, the argument list must be an array of data arguments.")
+        }
     }
 
     [Boolean] IsAlive() {
@@ -1457,9 +1521,17 @@ class BackgroundJob: BackgroundTask {
             Write-Information "Starting the $( $this.Name ) job"
 
             $EncodedScriptBlockInfo = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($this.TaskStartInfo.ScriptBlock.ToString()))
+            $JsonArgumentList = if ($this.TaskStartInfo.ArgumentList.Length) {
+                $this.TaskStartInfo.ArgumentList | ConvertTo-Json
+            } else {
+                ""
+            }
+            $EncodedArgumentList = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($JsonArgumentList))
+
             $this.Process = Start-Process powershell -NoNewWindow -ArgumentList "-Command", "
 `$HashtableTaskStartInfo = [ScriptBlock]::Create([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$EncodedScriptBlockInfo')))
-`$Job = Start-Job @HashtableTaskStartInfo
+`$TaskStartInfoArgumentList = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$EncodedArgumentList')) | ConvertFrom-Json
+`$Job = Start-Job @HashtableTaskStartInfo -ArgumentList `$TaskStartInfoArgumentList
 while (`$Job -and (`$Job.State -eq 'Running')) {
     `$Output = `Receive-Job -Job `$Job -ErrorAction SilentlyContinue
 
@@ -1477,7 +1549,7 @@ if (`$LASTEXITCODE) {
 }
 exit" -PassThru
         } catch {
-            throw [BackgroundJobException]::new("Failed to start the $( $this.Name ) job : $( $_.Exception.Message )")
+            throw [StartBackgroundJobException]::new("Failed to start the $( $this.Name ) job : $( $_.Exception.Message )")
         }
     }
 
@@ -1516,8 +1588,6 @@ exit" -PassThru
         # Fatal error / force kill request : force kill the job
         if ($ForceKill) {
             try {
-                Write-Information "Killing the $( $this.Name ) job with PID $( $this.Process.Id )"
-
                 $this.Process | Stop-Process -Force
 
                 if (-not($?)) {
@@ -1529,6 +1599,8 @@ exit" -PassThru
                 if (-not($?)) {
                     throw [StopBackgroundJobException]::new("Failed waiting for the job to terminate within $( $this.TaskStopInfo.KillTimeout ) seconds")
                 }
+
+                Write-Information "Killed the $( $this.Name ) job with PID $( $this.Process.Id )"
 
                 if ($this.TemporaryFileCheckEnabled) {
                     $ReturnCode = $this.CheckedTemporaryFileExistenceState

@@ -277,19 +277,19 @@ class MockedBackgroundTaskFive: BackgroundTask {
     Context 'Invalid task creation' -ForEach @(
         @{ TaskStartInfo = @{}; TaskStopInfo = @{
             StandardStopTimeout = -1
-        }; Name = "BasicTaskWithInvalidNegativeStandardStopTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.ArgumentException]}
+        }; Name = "BasicTaskWithInvalidNegativeStandardStopTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.InvalidOperationException]}
 
         @{ TaskStartInfo = @{}; TaskStopInfo = @{
             StandardStopTimeout = ""
-        }; Name = "BasicTaskWithInvalidStandardStopTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.ArgumentException]}
+        }; Name = "BasicTaskWithInvalidStandardStopTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.InvalidOperationException]}
 
         @{ TaskStartInfo = @{}; TaskStopInfo = @{
             KillTimeout = -1
-        }; Name = "BasicTaskWithNegativeKillTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.ArgumentException]}
+        }; Name = "BasicTaskWithNegativeKillTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.InvalidOperationException]}
 
         @{ TaskStartInfo = @{}; TaskStopInfo = @{
             KillTimeout = ""
-        }; Name = "BasicTaskWithInvalidKillTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.ArgumentException]}
+        }; Name = "BasicTaskWithInvalidKillTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.InvalidOperationException]}
 
         @{ TaskStartInfo = @{}; TaskStopInfo = @{}; Name = " InvalidServiceNameWithSpaceAtTheBeginning"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.Management.Automation.SetValueInvocationException] }
         @{ TaskStartInfo = @{}; TaskStopInfo = @{}; Name = "InvalidServiceName WithSpace"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.Management.Automation.SetValueInvocationException] }
@@ -301,6 +301,115 @@ class MockedBackgroundTaskFive: BackgroundTask {
     ) {
         It "fails to create a background task <name> since the arguments are incorrect : standard timeout = <taskstopinfo.standardstoptimeout>; force kill timeout = <taskstopinfo.killtimeout>; temporary file check = <temporaryfilecheckenabled>" {
             { [MockedBackgroundTask]::new($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) } | Should -Throw -ExceptionType $ExpectedExceptionType
+        }
+    }
+
+    Context 'Invalid task start info' {
+        BeforeEach {
+            Invoke-Expression @'
+class MockedBackgroundTaskSix: BackgroundTask {
+    MockedBackgroundTaskSix([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) {}
+    
+    [Void] CheckTaskStartInfo() {
+        throw [InvalidOperationException]::new("Task start info is incorrect")
+    }
+}
+'@
+        }
+
+        It "fails to create a background task because the task start info is incorrect" {
+            { [MockedBackgroundTaskSix]::new(@{}, @{}, "InvalidTaskStartInfoTest", $false) } | Should -Throw -ExceptionType ([InvalidOperationException])
+        }
+    }
+
+    Context 'Invalid altered task start info on start' {
+        BeforeEach {
+            Invoke-Expression @'
+class MockedBackgroundTaskEight: BackgroundTask {
+    MockedBackgroundTaskEight([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) {}
+    
+    [Void] CheckTaskStartInfo() {
+        $global:TaskStartInfoCheckCounter++
+
+        if ($global:TaskStartInfoCheckCounter -ge 2) {
+            throw [InvalidOperationException]::new("Task start info is incorrect")
+        }
+    }
+
+    [Boolean] IsAlive() {
+        return $false
+    }
+}
+'@
+        }
+
+        It "fails to start a background task because the altered task start info is incorrect" {
+            $BackgroundTask = [MockedBackgroundTaskEight]::new(@{}, @{}, "InvalidAlteredTaskStartInfoTest", $false)
+            { $BackgroundTask.Start() } | Should -Throw -ExceptionType ([InvalidOperationException])
+        }
+    }
+
+    Context 'Invalid task stop info' {
+        BeforeEach {
+            Invoke-Expression @'
+class MockedBackgroundTaskNine: BackgroundTask {
+    MockedBackgroundTaskNine([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) {}
+    
+    [Void] CheckTaskStopInfo() {
+        throw [InvalidOperationException]::new("Task stop info is incorrect")
+    }
+}
+'@
+        }
+
+        It "fails to create a background task because the task stop info is incorrect" {
+            { [MockedBackgroundTaskNine]::new(@{}, @{}, "InvalidTaskStopInfoTest", $false) } | Should -Throw -ExceptionType ([InvalidOperationException])
+        }
+    }
+
+    Context 'Invalid altered task stop info on stop' {
+        BeforeEach {
+            Invoke-Expression @'
+class MockedBackgroundTaskEleven: BackgroundTask {
+    MockedBackgroundTaskEleven([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) {}
+    
+    [Void] CheckTaskStopInfo() {
+        $global:TaskStopInfoCheckCounter++
+
+        if ($global:TaskStopInfoCheckCounter -ge 2) {
+            throw [InvalidOperationException]::new("Task stop info is incorrect")
+        }
+    }
+
+    [Boolean] IsAlive() {
+        return $true
+    }
+}
+'@
+        }
+
+        It "fails to stop a background task because the altered task stop info is incorrect" {
+            $BackgroundTask = [MockedBackgroundTaskEleven]::new(@{}, @{}, "InvalidAlteredTaskStopInfoTest", $false)
+            { $BackgroundTask.Stop() } | Should -Throw -ExceptionType ([InvalidOperationException])
+        }
+    }
+
+    
+    Context 'Invalid pre check setup' {
+        BeforeEach {
+            Invoke-Expression @'
+class MockedBackgroundTaskTwelve: BackgroundTask {
+    MockedBackgroundTaskTwelve([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($TaskStartInfo, $TaskStopInfo, $Name, $TemporaryFileCheckEnabled) {}
+    
+    [Void] PreCheckSetup() {
+        throw [InvalidOperationException]::new("Pre-check error")
+    }
+}
+'@
+        }
+
+        It "fails the pre-check setup step" {
+            { [MockedBackgroundTaskTwelve]::new(@{}, @{}, "PreCheckSetupError", $false) } | Should -Throw -ExceptionType ([InvalidOperationException])
         }
     }
 

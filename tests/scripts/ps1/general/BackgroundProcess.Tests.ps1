@@ -34,7 +34,7 @@ Describe 'BackgroundProcess' -ForEach @(
         $global:TestErrorOutput = ""
     }
 
-    Context 'Infer default process properties from context' -ForEach @(
+    Context 'Infer default process properties from context' -Tag InferValues -ForEach @(
         @{ TaskStartInfo = @{}; ExpectedNoNewWindowProperty = $true }
         @{ TaskStartInfo = @{
             NoNewWindow = $null
@@ -108,7 +108,7 @@ Describe 'BackgroundProcess' -ForEach @(
                     $Name = "NestedProcess"
                     $TemporaryFileName = $Name + "_" + [Guid]::NewGuid().ToString()
                     $TaskStartInfo.ArgumentList = "-Command", "Start-Process -NoNewWindow powershell -ArgumentList '-Command', 'New-Item -Path (`$env:TEMP + ''\'' + ''$TemporaryFileName'') > `$null ; while (`$true) { Start-Sleep 1 }' -Wait"
-                
+                   
                     function Wait-TemporaryFile {
                         $Timer = 0
     
@@ -122,6 +122,8 @@ Describe 'BackgroundProcess' -ForEach @(
                             $Timer++
                         }
                     }
+
+                    $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
                 }
     
                 AfterEach {
@@ -129,7 +131,6 @@ Describe 'BackgroundProcess' -ForEach @(
                 }
     
                 It "creates the process that starts a nested process, starts it and stops the process tree : force kill = <stopcallalreadyexecuted>" {
-                    $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Process.HasExited | Should -BeFalse
@@ -148,10 +149,10 @@ Describe 'BackgroundProcess' -ForEach @(
                 BeforeEach {
                     $TemporaryFileCheckEnabled = $true
                     $Name = "TmpProcessCheckProcess"
+                    $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
                 }
     
-                It "creates the process that creates a temporary file, starts it and waits for the process to stop when the file is deleted : force kill = <stopcallalreadyexecuted>" {
-                    $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
+                It "starts the process that creates a temporary file, and waits for the process to stop when the file is deleted : force kill = <stopcallalreadyexecuted>" {
                     $BackgroundProcess.TemporaryFileCheckEnabled | Should -BeTrue
                     $BackgroundProcess.CheckedTemporaryFileExistence | Should -BeFalse
                     $BackgroundProcess.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitUncompleted)
@@ -179,12 +180,13 @@ Describe 'BackgroundProcess' -ForEach @(
                     Mock Start-Process {
                         throw "Fatal error"
                     }
-                }
 
-                It "raises an exception since the process failed to start" {
                     $BackgroundProcess = [BackgroundTaskFactory]::new($false).buildProcess(@{
                         FilePath = "process"
                     }, "CriticalStartFailTestProcess")
+                }
+
+                It "raises an exception since the process failed to start" {
                     { $BackgroundProcess.Start() } | Should -Throw -ExceptionType ([StartBackgroundProcessException])
                     $BackgroundProcess.IsAlive() | Should -BeFalse
                     $BackgroundProcess.Stop() | Should -BeExactly 0
@@ -220,12 +222,13 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
     }
 }
 '@
-                }
 
-                It "raises an exception when the process stops because the process stop fails" {
                     $BackgroundProcess = [MockedBackgroundTaskFactory]::new($false).buildProcess(@{
                         FilePath = "process"
                     }, "CriticalStopFailTestProcess")
+                }
+
+                It "raises an exception when the process stops because the process stop fails" {
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     { $BackgroundProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException])
@@ -267,12 +270,12 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
     }
 }
 '@
-                    }
-
-                    It "stops early since the process has already exited while trying to check for a temporary file" {
                         $BackgroundProcess = [MockedBackgroundTaskFactory]::new($true).buildProcess(@{
                             FilePath = "process"
                         }, "ProcessHasAlreadyExitedTestProcess")
+                    }
+
+                    It "stops early since the process has already exited while trying to check for a temporary file" {
                         $BackgroundProcess.Start()
                         $BackgroundProcess.IsAlive() | Should -BeTrue
                         $BackgroundProcess.Stop() | Should -BeExactly ([BackgroundTask]::ProcessHasAlreadyExited)
@@ -284,66 +287,12 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
                 }
             }
 
-            Context 'Fail for various reasons other than having a already dead process' {
-                BeforeEach {
-                    Mock Start-Process {
-                        return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
-                    }
-
-                    Mock Start-Sleep {}
-
-                    Mock Remove-Item {}
-
-                    Invoke-Expression @'
-class MockedBackgroundProcessTwo: BackgroundProcess {
-    MockedBackgroundProcessTwo([Hashtable] $ProcessStartInfo, [Hashtable] $ProcessStopInfo, [String] $Name = "", [Boolean] $TemporaryFileCheckEnabled): base($ProcessStartInfo, $ProcessStopInfo, $Name, $TemporaryFileCheckEnabled) {}
-
-    [Int] StopProcessTree() {
-        return 0
-    }
-
-    [Int] SyncWithTemporaryFile() {
-        return $this.SyncWithTemporaryFile({
-            return $false
-        }, [BackgroundTask]::TemporaryFileWaitTimeout)
-    }
-}
-'@
-
-                    Invoke-Expression @'
-class MockedBackgroundTaskFactoryTwo: BackgroundTaskFactory {
-    MockedBackgroundTaskFactoryTwo([Boolean] $TemporaryFileCheckEnabled): base($TemporaryFileCheckEnabled) {}
-
-    [BackgroundTask] buildProcess([Hashtable] $ProcessStartInfo, [String] $Name) {
-        return [MockedBackgroundProcessTwo]::new($ProcessStartInfo, @{
-        }, $Name, $this.TemporaryFileCheckEnabled)
-    }
-}
-'@
-                }
-
-                It "executes a force kill since the temporary file creation has timed out" {
-                    $BackgroundProcess = [MockedBackgroundTaskFactoryTwo]::new($true).buildProcess(@{
-                        FilePath = "process"
-                    }, "ProcessTemporaryFileCreationTimeoutTestProcess")
-                    $BackgroundProcess.Start()
-                    $BackgroundProcess.IsAlive() | Should -BeTrue
-                    $BackgroundProcess.Stop() | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeTrue
-                    $TestOutput | Should -BeExactly "Starting the $( $BackgroundProcess.Name ) process Stopping the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id ) Waiting for $( $BackgroundProcess.Name ) to create the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) Killed the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id ) "
-                    $TestWarningOutput | Should -BeNullOrEmpty
-                    $TestErrorOutput | Should -BeExactly "Failed to wait for the creation of the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file "
-                }
-            }
-
             Context 'Temporary file creation timeout' {
                 BeforeEach {
                     Mock Start-Process {
                         return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
                     }
-
                     Mock Start-Sleep {}
-
                     Mock Remove-Item {}
 
                     Invoke-Expression @'
@@ -372,12 +321,13 @@ class MockedBackgroundTaskFactoryTwo: BackgroundTaskFactory {
     }
 }
 '@
-                }
 
-                It "executes a force kill since the temporary file creation has timed out" {
                     $BackgroundProcess = [MockedBackgroundTaskFactoryTwo]::new($true).buildProcess(@{
                         FilePath = "process"
                     }, "ProcessTemporaryFileCreationTimeoutTestProcess")
+                }
+
+                It "executes a force kill since the temporary file creation has timed out" {
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Stop() | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
