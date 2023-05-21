@@ -299,9 +299,7 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
 class MockedBackgroundProcessTwo: BackgroundProcess {
     MockedBackgroundProcessTwo([Hashtable] $ProcessStartInfo, [Hashtable] $ProcessStopInfo, [String] $Name = "", [Boolean] $TemporaryFileCheckEnabled): base($ProcessStartInfo, $ProcessStopInfo, $Name, $TemporaryFileCheckEnabled) {}
 
-    [Int] StopProcessTree() {
-        return 0
-    }
+    [Void] StopProcessTree() {}
 
     [Int] SyncWithTemporaryFile() {
         return $this.SyncWithTemporaryFile({

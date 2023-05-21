@@ -210,7 +210,7 @@ Describe 'BackgroundJob' {
                 Context 'Stop error' {
                     BeforeEach {
                         Mock Start-Process {
-                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
+                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $false }
                         }
     
                         Mock Stop-Process {
@@ -236,7 +236,7 @@ Describe 'BackgroundJob' {
                 Context 'Wait error' {
                     BeforeEach {
                         Mock Start-Process {
-                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
+                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $false }
                         }
     
                         Mock Stop-Process {
@@ -268,7 +268,7 @@ Describe 'BackgroundJob' {
                 Context 'Job has already exited' {
                     BeforeEach {
                         Mock Start-Process {
-                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
+                            return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $false }
                         }
 
                         Mock Remove-Item { }
@@ -315,7 +315,7 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
             Context 'Temporary file creation timeout' {
                 BeforeEach {
                     Mock Start-Process {
-                        return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; IsAlive = $true }
+                        return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $false }
                     }
                     Mock Start-Sleep {}
                     Mock Remove-Item {}

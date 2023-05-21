@@ -318,9 +318,9 @@ class SystemStackDetector {
         # StdErr redirection bug, using the old CMD as alternative: https://github.com/PowerShell/PowerShell/issues/4002
         $DockerComposeVersion = ""
         $DockerComposeCli = ""
-
+        
         try {
-            cmd /c "docker info >nul 2>&1"
+            cmd /c "docker info >nul 2>&1" >$null
         } catch {
         }
 
@@ -1354,6 +1354,9 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
     # Background process that manages the start of the Docker services
     [BackgroundProcess] $DockerComposeServicesOrchestrator
 
+    # Arguments that refer to the options allowing the execution of Docker with the Compose mode if necessary
+    [String[]] $DockerComposeProcessArgumentList
+
     <#
         .DESCRIPTION
             Constructor of the Docker Compose process
@@ -1370,31 +1373,33 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
         .PARAM TemporaryFileCheckEnabled
             Enable or disable the temporary file check
     #>
-    BackgroundDockerComposeProcess([Hashtable] $DockerComposeProcessStartInfo, [Hashtable] $DockerComposeProcessStopInfo, [String] $Name, [Boolean] $TemporaryFileCheckEnabled): base($DockerComposeProcessStartInfo, $DockerComposeProcessStopInfo, $Name, $TemporaryFileCheckEnabled) {
-        $CurrentSystemStack = [SystemStackDetector]::RetrieveCurrentSystemStack()
-
-        if ((-not($CurrentSystemStack)) -or (-not($CurrentSystemStack.Tag.Equals([SystemStackTag]::Docker)))) {
-            $CurrentSystemStack = [SystemStackDetector]::DetectCompatibleAvailableDockerComposeCli()
-        }
-
-        if ((-not($CurrentSystemStack)) -or ($CurrentSystemStack.SystemStackComponents.Length -lt 1)) {
-            throw [System.Management.Automation.CommandNotFoundException]::new("No compatible and available Docker Compose version found. Requires Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ).")
-        }
-
-        $this.DockerComposeCli = $CurrentSystemStack
-
-        if (($null -ne $this.TaskStartInfo.Options) -and ($this.TaskStartInfo.Options -isnot [Array])) {
-            throw [ArgumentException]::new("Docker Compose start options must be passed as an array")
+    BackgroundDockerComposeProcess([Hashtable] $DockerComposeProcessStartInfo, [Hashtable] $DockerComposeProcessStopInfo, [String] $Name): base($DockerComposeProcessStartInfo, $DockerComposeProcessStopInfo, $Name, $false) {
+        if ($this.DockerComposeCli.SystemStackComponents[0].Command.Length -gt 1) {
+            $this.DockerComposeProcessArgumentList = $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] 
+        } else {
+            $this.DockerComposeProcessArgumentList = @($this.DockerComposeCli.SystemStackComponents[0].Command[1])
         }
 
         $this.DockerComposeServicesOrchestrator = [BackgroundTaskFactory]::new($false).buildProcess((@{
             FilePath = $this.DockerComposeCli.SystemStackComponents[0].Command[0]
-            ArgumentList = "$( $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ) up $( $this.TaskStartInfo.ServiceName ) -t $( $this.TaskStopInfo.StandardStopTimeout )"
+            ArgumentList = "$( $this.DockerComposeProcessArgumentList ) up $( $this.TaskStartInfo.Services ) -t $( $this.TaskStopInfo.StandardStopTimeout )"
         }), "$( $this.Name )DockerComposeOrchestrator")
     }
 
-    [Boolean] IgnoreInstantiationTaskStartInfoCheck() {
-        return $true
+    [Void] PreCheckSetup() {
+        $CurrentSystemStack = [SystemStackDetector]::RetrieveCurrentSystemStack()
+
+        if ((-not($CurrentSystemStack)) -or (-not($CurrentSystemStack.Tag.Equals([SystemStackTag]::Docker)))) {
+            if (-not($DetectedDockerComposeCli = [SystemStackDetector]::DetectCompatibleAvailableDockerComposeCli())) {
+                throw [System.Management.Automation.CommandNotFoundException]::new("No compatible and available Docker Compose version found. Requires Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ).")
+            }
+
+            $this.DockerComposeCli =  [SystemStack]::new([SystemStackTag]::Docker, @($DetectedDockerComposeCli))
+        }
+
+        if ($null -eq $this.TaskStartInfo.Services) {
+            $this.TaskStartInfo.Services = @()
+        }
     }
 
     [Void] CheckTaskStartInfo() {
@@ -1402,62 +1407,73 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
             throw [System.Management.Automation.CommandNotFoundException]::new("No compatible and available Docker Compose version found. Requires Docker Compose >= $( [SystemStackDetector]::RequiredDockerComposeVersion ).")
         }
 
-        if ($this.TaskStartInfo.Options -isnot [Array]) {
-            throw [ArgumentException]::new("Docker Compose start options must be passed as an array")
+        if ($this.TaskStartInfo.Services -isnot [Array]) {
+            throw [System.InvalidOperationException]::new("Docker Compose service names must be passed as an array")
+        }
+
+        foreach ($Service in $this.TaskStartInfo.Services) {
+            if ($Service -match "\s+") {
+                throw [System.InvalidOperationException]::new("Invalid Docker Compose service name: $Service. Service names must not contain spaces.")
+            }
         }
     }
 
     [Boolean] IsAlive() {
-        return (($isRunning = & cmd /c $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ps $this.TaskStartInfo.ServiceName --services --filter "status=running" 2`>`&1) -and (-not([String]::IsNullOrWhiteSpace($isRunning)))) -or
-                (($isRestarting = & cmd /c $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ps $this.TaskStartInfo.ServiceName --services --filter "status=restarting" 2`>`&1) -and (-not([String]::IsNullOrWhiteSpace($isRestarting)))) -or
-                (($isPaused = & cmd /c $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] ps $this.TaskStartInfo.ServiceName --services --filter "status=paused" 2`>`&1) -and (-not([String]::IsNullOrWhiteSpace($isPaused))))
+        return $this.DockerComposeServicesOrchestrator -and $this.DockerComposeServicesOrchestrator.IsAlive()
     }
 
     hidden [Void] StartIfNotAlive() {
         try {
-            Write-Information "Starting the $( $this.Name ) Docker Compose service"
+            Write-Information "Starting the $( $this.Name ) Docker Compose orchestrator process"
             $this.DockerComposeServicesOrchestrator.Start()
 
             if (-not($?) -or ($LASTEXITCODE -ne 0)) {
-                throw [StartBackgroundProcessException]::new("$( $this.Name ) Docker Compose service start failed : $( $_.Exception.Message )")
+                throw [StartBackgroundProcessException]::new("$( $this.Name ) Docker Compose orchestrator process start failed")
             }
         } catch {
-            throw [StartBackgroundProcessException]::new("Failed to start the $( $this.Name ) Docker Compose service : $( $_.Exception.Message )")
+            throw [StartBackgroundProcessException]::new("Failed to start the $( $this.Name ) Docker Compose orchestrator process : $( $_.Exception.Message )")
         }
     }
 
     hidden [Int] StopIfAlive() {
+        $this.TemporaryFileCheckEnabled = $false
+        $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $this.StopCallAlreadyExecuted
+        $FirstTimeout = $this.TaskStopInfo.StandardStopTimeout
+
         if (-not($this.StopCallAlreadyExecuted)) {
-            Write-Information "Stopping the $( $this.Name ) Docker Compose service"
+            Write-Information "Stopping the $( $this.Name ) Docker Compose orchestrator process"
         } else {
-            Write-Information "Killing the $( $this.Name ) Docker Compose service"
+            Write-Information "Killing the $( $this.Name ) Docker Compose orchestrator process"
+            $FirstTimeout = $this.TaskStopInfo.KillTimeout
         }
 
         try {
             # Stop the service container gracefully
             # StdErr redirection bug, using the old CMD as alternative: https://github.com/PowerShell/PowerShell/issues/4002
-            & cmd /c "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] )" $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] stop "$( $this.TaskStartInfo.ServiceName )" -t $this.TaskStopInfo.StandardStopTimeout 2`>`&1 | Out-Host
+            cmd /c "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] )" "$( $this.DockerComposeProcessArgumentList )" stop "$( $this.TaskStartInfo.Services )" -t "$FirstTimeout" "2>&1" | Out-Host
 
-            if ($? -and ($LASTEXITCODE -eq 0)) {
+            if ($? -and ($LASTEXITCODE -eq 0) -and ($this.DockerComposeServicesOrchestrator.Stop() -eq 0)) {
                 return [BackgroundTask]::SuccessfullyStopped
             }
 
-            throw [StopBackgroundProcessException]::new("Docker Compose service $( $this.Name ) stop failed : $( $_.Exception.Message )")
+            throw [StopBackgroundProcessException]::new("Docker Compose orchestrator process $( $this.Name ) stop failed")
         } catch {
             try {
+                $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $true
+                
                 # Fatal error or timeout : force kill the service container
-                Write-Warning "Failed to stop the $( $this.Name ) Docker Compose service. Trying to kill the Docker Compose service."
+                Write-Warning "Failed to stop the $( $this.Name ) Docker Compose orchestrator process : $( $_.Exception.Message ). Trying to kill the Docker Compose orchestrator process."
 
                 # StdErr redirection bug, using the old CMD as alternative: https://github.com/PowerShell/PowerShell/issues/4002
-                & cmd /c "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] )" $this.DockerComposeCli.SystemStackComponents[0].Command[1 .. ($this.DockerComposeCli.SystemStackComponents[0].Command.Length - 1)] kill "$( $this.TaskStartInfo.ServiceName )" 2`>`&1 | Out-Host
+                cmd /c "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] )" "$( $this.DockerComposeProcessArgumentList )" kill "$( $this.TaskStartInfo.Services )" "2>&1" | Out-Host
 
-                if ($? -and ($LASTEXITCODE -eq 0)) {
+                if ($? -and ($LASTEXITCODE -eq 0) -and ($this.DockerComposeServicesOrchestrator.Stop() -eq 0)) {
                     return [BackgroundTask]::KilledDueToStopTimeout
                 }
 
-                throw [StopBackgroundProcessException]::new("Docker Compose service $( $this.Name ) kill failed : $( $_.Exception.Message )")
+                throw [StopBackgroundProcessException]::new("Docker Compose orchestrator process $( $this.Name ) kill failed")
             } catch {
-                throw [StopBackgroundProcessException]::new("Failed to stop the $( $this.Name ) Docker Compose service : $( $_.Exception.Message )")
+                throw [StopBackgroundProcessException]::new("Failed to stop the $( $this.Name ) Docker Compose orchestrator process : $( $_.Exception.Message )")
             }
         }
     }
@@ -1644,11 +1660,11 @@ class BackgroundTaskFactory {
 
     [BackgroundTask] buildDockerComposeProcess([Hashtable] $DockerComposeProcessStartInfo, [String] $Name) {
         return [BackgroundDockerComposeProcess]::new($DockerComposeProcessStartInfo, @{
-        }, $Name, $this.TemporaryFileCheckEnabled)
+        }, $Name)
     }
 
     [BackgroundTask] buildDockerComposeProcess([Hashtable] $DockerComposeProcessStartInfo, [Hashtable] $DockerComposeProcessStopInfo, [String] $Name) {
-        return [BackgroundDockerComposeProcess]::new($DockerComposeProcessStartInfo, $DockerComposeProcessStopInfo, $Name, $this.TemporaryFileCheckEnabled)
+        return [BackgroundDockerComposeProcess]::new($DockerComposeProcessStartInfo, $DockerComposeProcessStopInfo, $Name)
     }
 
     [BackgroundTask] buildJob([Hashtable] $JobStartInfo, [String] $Name) {
