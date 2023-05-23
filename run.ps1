@@ -257,6 +257,10 @@ function Read-EnvironmentFile {
     return $keys | Get-Unique
 }
 
+function Get-ScriptRoot {
+    return $PSScriptRoot
+}
+
 ###############################
 # Environment related classes #
 ###############################
@@ -551,12 +555,11 @@ class SystemStackComponent {
         }
     }
 }
-
 <#
     .DESCRIPTION
        This class groups the properties of the environment
 #>
-class Environment {
+class EnvironmentContext {
     # Indicates whether or not load balancing will be enabled
     [ValidateNotNull()] [Boolean] $LoadBalancing
 
@@ -574,6 +577,12 @@ class Environment {
 
     # Environment file encoding
     [ValidateNotNullOrEmpty()] [String] $EnvironmentFileEncoding
+
+    # Initial location of the running script (current directory)
+    [ValidateNotNullOrEmpty()] [String] $InitialPath
+
+    # Real location of the running script
+    [ValidateNotNullOrEmpty()] [String] $ScriptPath
 
     # Loaded environment variables
     [ValidateNotNull()] [String[]] $EnvironmentVariables
@@ -594,16 +603,32 @@ class Environment {
         .DESCRIPTION
             Constructor that initializes the default properties of the environment
     #>
-    Environment() {
+    EnvironmentContext() {
         $this.LoadBalancing = $true
         $this.Build = $true
         $this.Start = $true
+        $this.InitialPath = "$PWD"
+        $this.ScriptPath = Get-ScriptRoot
+        $this.SetLocationToScriptPath()
         $this.EnvironmentFilePath = ".env"
-        $this.EnvironmentFileEncoding = "utf8"
+        $this.EnvironmentFileEncoding = "UTF8"
+        $this.EnvironmentVariables = @()
         $this.SystemStack = [SystemStack]::new([SystemStackTag]::Docker, [SystemStackComponent[]]@([SystemStackComponent]::new("Docker Compose", "docker compose", [SystemStackDetector]::RequiredDockerComposeVersion)))
         $this.BasicCleanupExecuted = $false
         $this.AdvancedCleanupExecuted = $false
         $this.CleanupExitCode = 0
+    }
+
+    SetLocationToScriptPath() {
+        if ((Test-Path env:SCRIPT_PATH) -and ($env:SCRIPT_PATH -ne $this.ScriptPath)) {
+            $this.ScriptPath = $env:SCRIPT_PATH
+        }
+
+        Set-Location $this.ScriptPath
+    }
+
+    ResetLocationToInitialPath() {
+        Set-Location $this.InitialPath
     }
 
     EnableLoadBalancing([Boolean] $LoadBalancing) {
@@ -622,12 +647,12 @@ class Environment {
         $this.SourceOnly = $SourceOnly
     }
 
-    SetEnvironmentFile([String] $FilePath, [String] $Encoding = "utf-8") {
+    SetEnvironmentFile([String] $FilePath, [String] $Encoding) {
         $this.EnvironmentFilePath = $FilePath
         $this.EnvironmentFileEncoding = $Encoding
     }
 
-    SetEnvironmentVariables([String[]] $EnvironmentVariables) {
+    SetEnvironmentVariableKeys([String[]] $EnvironmentVariables) {
         $PreviousEnvironmentVariables = $this.EnvironmentVariables
         $this.EnvironmentVariables = @()
 
@@ -635,9 +660,9 @@ class Environment {
             return
         } else {
             foreach ($EnvironmentVariable in $EnvironmentVariables) {
-                if ( [String]::IsNullOrWhiteSpace($EnvironmentVariable)) {
+                if ($EnvironmentVariable -notmatch "^[a-zA-Z][a-zA-Z0-9_]*$") {
                     $this.EnvironmentVariables = $PreviousEnvironmentVariables
-                    throw [ArgumentNullException]::new("Environment variable name cannot be null or empty")
+                    throw [System.ArgumentException]::new("The name of the environment variable ($EnvironmentVariable) cannot be null or empty and must not contain spaces")
                 }
 
                 $this.EnvironmentVariables += $EnvironmentVariable
@@ -645,7 +670,7 @@ class Environment {
         }
     }
 
-    AddEnvironmentVariables([String[]] $EnvironmentVariables) {
+    AddEnvironmentVariableKeys([String[]] $EnvironmentVariables) {
         $PreviousEnvironmentVariables = $this.EnvironmentVariables
 
         if ($null -eq $EnvironmentVariables) {
@@ -653,19 +678,19 @@ class Environment {
         }
 
         foreach ($EnvironmentVariable in $EnvironmentVariables) {
-            if ( [String]::IsNullOrWhiteSpace($EnvironmentVariable)) {
+            if ($EnvironmentVariable -notmatch "^[a-zA-Z][a-zA-Z0-9_]*$") {
                 $this.EnvironmentVariables = $PreviousEnvironmentVariables
-                throw [ArgumentNullException]::new("Environment variable name cannot be null or empty")
+                throw [System.ArgumentException]::new("The name of the environment variable ($EnvironmentVariable) cannot be null or empty and must not contain spaces")
             }
 
             $this.EnvironmentVariables += $EnvironmentVariable
         }
 
-        $this.EnvironmentVariables = $this.EnvironmentVariables | Get-Unique
+        $this.EnvironmentVariables = $this.EnvironmentVariables | Select-Object -Unique | Group-Object -Property { $_.ToUpper() } | ForEach-Object { $_.Group[0] }
     }
 
     ReadEnvironmentFile() {
-        $this.EnvironmentVariables += Read-EnvironmentFile -FilePath $this.EnvironmentFilePath -Encoding $this.EnvironmentFileEncoding | Get-Unique
+        $this.EnvironmentVariables += Read-EnvironmentFile -FilePath $this.EnvironmentFilePath -Encoding $this.EnvironmentFileEncoding | Select-Object -Unique | Group-Object -Property { $_.ToUpper() } | ForEach-Object { $_.Group[0] }
     }
 
     SetSystemStack([SystemStack] $SystemStack) {
@@ -1687,7 +1712,7 @@ class BackgroundTaskFactory {
 #>
 class Runner {
     # Environment properties
-    static [Environment] $Environment
+    static [EnvironmentContext] $EnvironmentContext
 
     # Background demo tasks
     static [Array] $Tasks
@@ -1704,31 +1729,31 @@ class Runner {
     #>
     static [Void] Main([String[]] $Options) {
         [SystemStackDetector]::ChoosenSystemStack = $null
-        [Runner]::Environment = [Environment]::new()
+        [Runner]::EnvironmentContext = [EnvironmentContext]::new()
         [Runner]::Tasks = @()
 
         # Parse run arguments
         foreach ($Option in $Options) {
             switch ($Option) {
                 --no-start {
-                    [Runner]::Environment.EnableStart($false)
+                    [Runner]::EnvironmentContext.EnableStart($false)
                 }
                 --no-build {
-                    [Runner]::Environment.EnableBuild($false)
+                    [Runner]::EnvironmentContext.EnableBuild($false)
                 }
                 --no-load-balancing {
-                    [Runner]::Environment.EnableLoadBalancing($false)
-                    [Runner]::Environment.SetEnvironmentFile("no-load-balancing.env", "utf8")
+                    [Runner]::EnvironmentContext.EnableLoadBalancing($false)
+                    [Runner]::EnvironmentContext.SetEnvironmentFile("no-load-balancing.env", "utf8")
                 }
                 --source-only {
-                    [Runner]::Environment.EnableSourceOnlyMode($true)
+                    [Runner]::EnvironmentContext.EnableSourceOnlyMode($true)
                 }
             }
         }
 
         # Execute if not sourced
-        if (-not([Runner]::Environment.SourceOnly)) {
-            [Runner]::run()
+        if (-not([Runner]::EnvironmentContext.SourceOnly)) {
+            [Runner]::Run()
         }
     }
 
@@ -1753,22 +1778,23 @@ class Runner {
     #>
     hidden static [Void] Configure() {
         try {
+            [Runner]::SetLocationToScriptPath()
             [Console]::TreatControlCAsInput = $false
 
-            if ([Runner]::Environment.Start) {
+            if ([Runner]::EnvironmentContext.Start) {
                 Write-Information "Reading environment variables ..."
-                [Runner]::Environment.ReadEnvironmentFile()
+                [Runner]::EnvironmentContext.ReadEnvironmentFile()
 
                 Write-Information "Environment auto-configuration ..."
                 $env:GIT_CONFIG_BRANCH = Invoke-And -ReturnObject git rev-parse --abbrev-ref HEAD
                 $env:LOADBALANCER_HOSTNAME = [System.Net.Dns]::GetHostName()
                 $env:API_HOSTNAME = $env:LOADBALANCER_HOSTNAME
                 $env:API_TWO_HOSTNAME = $env:LOADBALANCER_HOSTNAME
-                [Runner]::Environment.SetSystemStack([SystemStackDetector]::RetrieveMostAppropriateSystemStack())
+                [Runner]::EnvironmentContext.SetSystemStack([SystemStackDetector]::RetrieveMostAppropriateSystemStack())
 
-                Write-Information ([Runner]::Environment.SystemStack)
+                Write-Information ([Runner]::EnvironmentContext.SystemStack)
 
-                if ([Runner]::Environment.SystemStack.Tag -eq [SystemStackTag]::System) {
+                if ([Runner]::EnvironmentContext.SystemStack.Tag -eq [SystemStackTag]::System) {
                     $env:CONFIG_SERVER_URL = "http://localhost:$env:CONFIG_SERVER_PORT"
                     $env:EUREKA_SERVERS_URLS = "http://localhost:$env:DISCOVERY_SERVER_PORT/eureka"
 
@@ -1777,10 +1803,10 @@ class Runner {
                     Remove-Item env:\DB_PASSWORD -ErrorAction SilentlyContinue
                     Remove-Item env:\DB_PORT -ErrorAction SilentlyContinue
 
-                    [Runner]::Environment.AddEnvironmentVariables(@("CONFIG_SERVER_URL", "EUREKA_SERVERS_URLS"))
+                    [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("CONFIG_SERVER_URL", "EUREKA_SERVERS_URLS"))
                 }
 
-                [Runner]::Environment.AddEnvironmentVariables(@("GIT_CONFIG_BRANCH", "LOADBALANCER_HOSTNAME", "API_HOSTNAME", "API_TWO_HOSTNAME"))
+                [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("GIT_CONFIG_BRANCH", "LOADBALANCER_HOSTNAME", "API_HOSTNAME", "API_TWO_HOSTNAME"))
             }
         } catch [System.Management.Automation.CommandNotFoundException] {
             Write-Error $_.Exception.Message -ErrorAction Continue
@@ -1793,6 +1819,9 @@ class Runner {
             } else {
                 [Runner]::Cleanup(8)
             }
+        } finally {
+            [Runner]::EnvironmentContext.ResetLocationToInitialPath()
+            $env:SCRIPT_PATH = ""
         }
     }
 
@@ -1802,45 +1831,45 @@ class Runner {
      #>
     hidden static [Void] Build() {
         try {
-            if ([Runner]::Environment.SystemStack.Tag.Equals([SystemStackTag]::Docker) -and [Runner]::Environment.Build) {
+            if ([Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker) -and [Runner]::EnvironmentContext.Build) {
                 # Docker build
                 Write-Information "Building images and packages ..."
 
                 # Run the command in the old CMD to avoid the Docker Compose console error message : https://github.com/docker/compose/issues/8186
-                if ([Runner]::Environment.LoadBalancing) {
-                    Invoke-And "cmd /c $( [Runner]::Environment.SystemStack.SystemStackComponents[0].Command[0] ) $( [Runner]::Environment.SystemStack.SystemStackComponents[0].Command[1 .. ([Runner]::Environment.SystemStack.SystemStackComponents[0].Command.Length - 1)] ) build `"2`>`&1`""
+                if ([Runner]::EnvironmentContext.LoadBalancing) {
+                    Invoke-And "cmd /c $( [Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command[0] ) $( [Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command[1 .. ([Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command.Length - 1)] ) build `"2`>`&1`""
                 } else {
-                    Invoke-And "cmd /c $( [Runner]::Environment.SystemStack.SystemStackComponents[0].Command[0] ) $( [Runner]::Environment.SystemStack.SystemStackComponents[0].Command[1 .. ([Runner]::Environment.SystemStack.SystemStackComponents[0].Command.Length - 1)] ) -f docker-compose-no-load-balancing.yml build `"2`>`&1`""
+                    Invoke-And "cmd /c $( [Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command[0] ) $( [Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command[1 .. ([Runner]::EnvironmentContext.SystemStack.SystemStackComponents[0].Command.Length - 1)] ) -f docker-compose-no-load-balancing.yml build `"2`>`&1`""
                 }
             } else {
                 # No-docker build
-                if (-not([Runner]::Environment.Build) -and [Runner]::Environment.SystemStack.Tag.Equals([SystemStackTag]::System)) {
-                    if ([Runner]::Environment.Start -and (-not([Runner]::Environment.LoadBalancing)) -and
+                if (-not([Runner]::EnvironmentContext.Build) -and [Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::System)) {
+                    if ([Runner]::EnvironmentContext.Start -and (-not([Runner]::EnvironmentContext.LoadBalancing)) -and
                             (-not(Test-Path vglconfig/target/vglconfig.jar -PathType Leaf) -or
                                     -not(Test-Path vglservice/target/vglservice.jar -PathType Leaf) -or
                                     -not(Test-Path vglfront/node_modules -PathType Container))) {
                         Write-Information "No Load Balancing packages are not completely built. Build mode enabled."
-                        [Runner]::Environment.Build = $true
+                        [Runner]::EnvironmentContext.Build = $true
                     }
 
-                    if ([Runner]::Environment.Start -and [Runner]::Environment.LoadBalancing -and
+                    if ([Runner]::EnvironmentContext.Start -and [Runner]::EnvironmentContext.LoadBalancing -and
                             (-not(Test-Path vglconfig/target/vglconfig.jar -PathType Leaf) -or
                                     -not(Test-Path vglservice/target/vglservice.jar -PathType Leaf) -or
                                     -not(Test-Path vglfront/node_modules -PathType Container) -or
                                     -not(Test-Path vgldiscovery/target/vgldiscovery.jar -PathType Leaf) -or
                                     -not(Test-Path vglloadbalancer/target/vglloadbalancer.jar -PathType Leaf))) {
                         Write-Information "Load Balancing packages are not completely built. Build mode enabled."
-                        [Runner]::Environment.Build = $true
+                        [Runner]::EnvironmentContext.Build = $true
                     }
                 }
 
-                if ([Runner]::Environment.Build -and ([Runner]::Environment.SystemStack.Tag.Equals([SystemStackTag]::System))) {
+                if ([Runner]::EnvironmentContext.Build -and ([Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::System))) {
                     Write-Information "Building packages ..."
 
                     Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglconfig -f vglconfig\pom.xml
                     Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglservice -f vglservice\pom.xml
 
-                    if ([Runner]::Environment.LoadBalancing) {
+                    if ([Runner]::EnvironmentContext.LoadBalancing) {
                         Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vgldiscovery -f vgldiscovery\pom.xml
                         Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglloadbalancer -f vglloadbalancer\pom.xml
                     }
@@ -1858,6 +1887,8 @@ class Runner {
             } else {
                 [Runner]::Cleanup(9)
             }
+        } finally {
+            [Runner]::EnvironmentContext.ResetLocationToInitialPath()
         }
     }
 
@@ -1867,12 +1898,12 @@ class Runner {
      #>
     hidden static [Void] Start() {
         try {
-            if ([Runner]::Environment.Start) {
-                if ( [Runner]::Environment.SystemStack.Tag.Equals([SystemStackTag]::Docker)) {
+            if ([Runner]::EnvironmentContext.Start) {
+                if ( [Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker)) {
                     # Docker run
                     Write-Output "Launching Docker services ..."
 
-                    if ([Runner]::Environment.LoadBalancing) {
+                    if ([Runner]::EnvironmentContext.LoadBalancing) {
                         [Runner]::Tasks = @([BackgroundTaskFactory]::new($false).buildDockerComposeProcess(@{
                         }, "LoadBalancingServices"))
                     } else {
@@ -1903,7 +1934,7 @@ class Runner {
                         ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglservice\src\main\resources\application.properties", "-jar", "vglservice\target\vglservice.jar"
                     }), "VglServiceOne")
 
-                    if ([Runner]::Environment.LoadBalancing) {
+                    if ([Runner]::EnvironmentContext.LoadBalancing) {
                         [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
                             FilePath = "java"
                             ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglservice\src\main\resources\application.properties", "-DAPI_SERVER_PORT=$env:API_TWO_SERVER_PORT", "-DAPI_HOSTNAME=$env:API_TWO_HOSTNAME", "-jar", "vglservice\target\vglservice.jar"
@@ -1962,6 +1993,8 @@ class Runner {
         } catch {
             Write-Error $_.Exception.Message -ErrorAction Continue
             [Runner]::Cleanup(11)
+        } finally {
+            [Runner]::EnvironmentContext.ResetLocationToInitialPath()
         }
     }
 
@@ -1973,60 +2006,64 @@ class Runner {
             Cleanup exit code
     #>
     hidden static [Void] Cleanup([Int] $Code) {
-        if (([Runner]::Environment.CleanupExitCode -eq 0) -or ([Runner]::Environment.CleanupExitCode -ne 130)) {
-            [Runner]::Environment.CleanupExitCode = $Code
-        }
-
-        # Environment cleanup
-        if (-not([Runner]::Environment.BasicCleanUpExecuted)) {
-            if ( "$pwd".Contains("vglfront")) {
-                Set-Location ..
+        try {
+            if (([Runner]::EnvironmentContext.CleanupExitCode -eq 0) -or ([Runner]::EnvironmentContext.CleanupExitCode -ne 130)) {
+                [Runner]::EnvironmentContext.CleanupExitCode = $Code
             }
 
-            foreach ($Key in [Runner]::Environment.EnvironmentVariables) {
-                if (Test-Path env:\"$Key") {
-                    Write-Information "Removing environment variable $Key"
-                    Remove-Item env:\"$Key"
+            # Environment cleanup
+            if (-not([Runner]::EnvironmentContext.BasicCleanUpExecuted)) {
+                if ( "$pwd".Contains("vglfront")) {
+                    Set-Location ..
                 }
-            }
 
-            [Runner]::Environment.BasicCleanupExecuted = $true
-        }
-
-        # Processes cleanup
-        if (-not([Runner]::Environment.AdvancedCleanupExecuted)) {
-            foreach ($Task in [Runner]::Tasks) {
-                # Allow cleanup interrupt: if CTRL-C is triggered, the cleanup will be restarted
-                if ([Console]::KeyAvailable) {
-                    $keyboardKeyCombination = [Console]::ReadKey($true)
-
-                    if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
-                        [Runner]::Cleanup(130)
+                foreach ($Key in [Runner]::EnvironmentContext.EnvironmentVariables) {
+                    if (Test-Path env:\"$Key") {
+                        Write-Information "Removing environment variable $Key"
+                        Remove-Item env:\"$Key"
                     }
                 }
 
-                # Stop the process
-                try {
-                    $StopCode = $Task.Stop()
-
-                    if ($StopCode -ne [BackgroundTask]::SuccessfullyStopped) {
-                        [Runner]::Environment.CleanupExitCode = $StopCode
-                    }
-                } catch [StopBackgroundTaskException] {
-                    Write-Error $_.Exception.Message -ErrorAction Continue
-                    [Runner]::Environment.CleanupExitCode = 12
-                } catch {
-                    Write-Error $_.Exception.Message -ErrorAction Continue
-                    [Runner]::Environment.CleanupExitCode = 13
-                }
+                [Runner]::EnvironmentContext.BasicCleanupExecuted = $true
             }
 
-            [Runner]::Environment.AdvancedCleanupExecuted = $true
-        }
+            # Processes cleanup
+            if (-not([Runner]::EnvironmentContext.AdvancedCleanupExecuted)) {
+                foreach ($Task in [Runner]::Tasks) {
+                    # Allow cleanup interrupt: if CTRL-C is triggered, the cleanup will be restarted
+                    if ([Console]::KeyAvailable) {
+                        $keyboardKeyCombination = [Console]::ReadKey($true)
 
-        [Console]::TreatControlCAsInput = $false
-        [SystemStackDetector]::ChoosenSystemStack = $null
-        exit [Runner]::Environment.CleanupExitCode
+                        if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
+                            [Runner]::Cleanup(130)
+                        }
+                    }
+
+                    # Stop the process
+                    try {
+                        $StopCode = $Task.Stop()
+
+                        if ($StopCode -ne [BackgroundTask]::SuccessfullyStopped) {
+                            [Runner]::EnvironmentContext.CleanupExitCode = $StopCode
+                        }
+                    } catch [StopBackgroundTaskException] {
+                        Write-Error $_.Exception.Message -ErrorAction Continue
+                        [Runner]::EnvironmentContext.CleanupExitCode = 12
+                    } catch {
+                        Write-Error $_.Exception.Message -ErrorAction Continue
+                        [Runner]::EnvironmentContext.CleanupExitCode = 13
+                    }
+                }
+
+                [Runner]::EnvironmentContext.AdvancedCleanupExecuted = $true
+            }
+
+            [Console]::TreatControlCAsInput = $false
+            [SystemStackDetector]::ChoosenSystemStack = $null
+            exit [Runner]::EnvironmentContext.CleanupExitCode
+        } finally {
+            [Runner]::EnvironmentContext.ResetLocationToInitialPath()
+        }
     }
 }
 
