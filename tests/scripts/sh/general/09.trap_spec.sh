@@ -100,6 +100,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'ignores the TERM / INT signal since they are blocked'
             When call send_kill_signal -15 false
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 0
             The variable queued_signal_code should eq -1
             The variable exit_code should eq 0
@@ -118,6 +120,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the TERM signal'
             When call send_kill_signal -15
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 1
             The variable queued_signal_code should eq 143
             The variable exit_code should eq 143
@@ -130,6 +134,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the TERM signal twice'
             When call send_kill_signal -15 && send_kill_signal -15
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The variable queued_signal_code should eq 143
             The variable exit_code should eq 143
@@ -142,6 +148,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the INT signal'
             When call send_kill_signal -2
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 1
             The variable queued_signal_code should eq 130
             The variable exit_code should eq 130
@@ -154,6 +162,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the INT signal twice'
             When call send_kill_signal -2 && send_kill_signal -2
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The variable queued_signal_code should eq 130
             The variable exit_code should eq 130
@@ -166,6 +176,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the TERM signal and an INT signal'
             When call send_kill_signal -15 && send_kill_signal -2
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The variable queued_signal_code should eq 130
             The variable exit_code should eq 130
@@ -178,6 +190,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the INT signal twice and an TERM signal twice'
             When call send_kill_signal -2 && send_kill_signal -2 && send_kill_signal -15 && send_kill_signal -15
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 4
             The variable queued_signal_code should eq 143
             The variable exit_code should eq 143
@@ -190,6 +204,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'queues the TERM signal twice and an INT signal twice'
             When call send_kill_signal -15 && send_kill_signal -15 && send_kill_signal -2 && send_kill_signal -2
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 4
             The variable queued_signal_code should eq 130
             The variable exit_code should eq 130
@@ -208,6 +224,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'flags the cleanup as completed'
             When call dump_load_subshell_variables
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 0
             The variable queued_signal_code should eq -1
             The variable exit_code should eq 0
@@ -231,6 +249,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'increments the cleanup counter and flags the cleanup as completed (TERM)'
             When call send_kill_signal -15
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 1
             The variable queued_signal_code should eq -1
             The variable exit_code should eq 143
@@ -243,6 +263,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
         It 'increments the cleanup counter and flags the cleanup as completed (INT)'
             When call send_kill_signal -2
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 1
             The variable queued_signal_code should eq -1
             The variable exit_code should eq 130
@@ -271,6 +293,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (INT)'
                 When call send_kill_signal -2 && send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq -1
                 The variable exit_code should eq 130
@@ -283,6 +307,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (TERM)'
                 When call send_kill_signal -15 && send_kill_signal -15
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq -1
                 The variable exit_code should eq 143
@@ -295,6 +321,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (TERM + INT)'
                 When call send_kill_signal -15 && send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq -1
                 The variable exit_code should eq 130
@@ -307,6 +335,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (INT + TERM)'
                 When call send_kill_signal -2 && send_kill_signal -15
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq -1
                 The variable exit_code should eq 143
@@ -336,6 +366,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (INT)'
                 When call send_kill_signal -2 && send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 130
                 The variable exit_code should eq 130
@@ -348,6 +380,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (TERM)'
                 When call send_kill_signal -15 && send_kill_signal -15
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 143
                 The variable exit_code should eq 143
@@ -360,6 +394,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (TERM + INT)'
                 When call send_kill_signal -15 && send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 130
                 The variable exit_code should eq 130
@@ -372,6 +408,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'increments the cleanup counter twice and flags the cleanup as completed (INT + TERM)'
                 When call send_kill_signal -2 && send_kill_signal -15
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 143
                 The variable exit_code should eq 143
@@ -414,6 +452,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'executes the cleanup again since a signal has been queued'
                 When call send_kill_signal -15
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 143
                 The variable exit_code should eq 143
@@ -445,6 +485,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'executes the cleanup again since a signal has been queued'
                 When call send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 143
                 The variable exit_code should eq 143
@@ -476,6 +518,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'executes the cleanup again since a signal has been queued'
                 When call send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 130
                 The variable exit_code should eq 130
@@ -507,6 +551,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
             It 'executes the cleanup again since a signal has been queued'
                 When call send_kill_signal -2
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The variable cleanup_count should eq 2
                 The variable queued_signal_code should eq 130
                 The variable exit_code should eq 130

@@ -56,6 +56,8 @@ Describe 'Register process info'
             It 'adds valid process info'
                 When call register_process_info "$2" "$3" "$4" "$5" "$6" "$7" "$8"
                 The status should be success
+                The stdout should be blank
+                The stderr should be blank
                 The lines of variable processes should eq "$1"
                 Assert retrieved_processes_are_correctly_numbered "$1"
                 Assert current_process_info_is_correct "$2" "$2#$3#$4#$5#$6#$7#$8"
@@ -107,6 +109,8 @@ Describe 'Register process info'
         It 'updates the process data'
             When call register_process_info "$2" "$3" "$4" "$5" "$6" "$7" "$8"
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
             The lines of variable processes should eq "$1"
             Assert retrieved_processes_are_correctly_numbered "$1"
             Assert current_process_info_is_correct "$2" "$2#$3#$4#$5#$6#$7#$8"

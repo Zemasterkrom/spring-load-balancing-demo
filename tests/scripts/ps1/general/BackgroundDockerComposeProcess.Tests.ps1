@@ -8,22 +8,12 @@ BeforeAll {
 
 Describe 'BackgroundDockerComposeProcess' {
     BeforeEach {
-        Mock Write-Warning {
-            $global:TestWarningOutput += Write-Output ($Message + " ")
-        }
-
-        Mock Write-Error {
-            $global:TestErrorOutput += Write-Output ($Message + " ")
-        }
-
-        Mock Write-Information {
-            $global:TestOutput += Write-Output ($MessageData + " ")
-        }
-
         function Write-Array {
             if (($null -eq $args[0]) -or ($args[0] -isnot [Array])) {
                 Write-Information "" 
             }
+
+            $CompleteContent = ""
 
             for ($i = 0; $i -lt $args[0].Length; $i++) {
                 if ($args[0][$i] -is [Array]) {
@@ -38,22 +28,20 @@ Describe 'BackgroundDockerComposeProcess' {
                     $Separator = ""
                 }
 
-                Write-Information $Content $Separator
+                $CompleteContent += "$Content$Separator"
             }
+
+            Write-Information $CompleteContent
         }
-        
-        $global:TestOutput = ""
-        $global:TestWarningOutput = ""
-        $global:TestErrorOutput = ""
+
+        Reset-TestOutput
     }
 
     AfterEach {
-        $global:TestOutput = ""
-        $global:TestWarningOutput = ""
-        $global:TestErrorOutput = ""
+        Reset-TestOutput
     }
 
-    Context 'Success cases' -ForEach @(
+    Context 'Success cases' -Tag SuccessCases -ForEach @(
         @{ TaskStartInfo = @{}; ExpectedServicesDescription = "" }
         @{ TaskStartInfo = @{
             Services = @()
@@ -167,7 +155,7 @@ Describe 'BackgroundDockerComposeProcess' {
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.HasExited = $true
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.HasExited | Should -BeTrue 
                     $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                    $TestOutput | Should -MatchExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process $StopKeyword the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process /c $DockerComposeCli ? stop $ExpectedServicesDescription -t $ExpectedStopTimeout 2>&1 $StopKeyword the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 "
+                    $TestOutput | Should -MatchExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;$StopKeyword the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;/c $DockerComposeCli ? stop $ExpectedServicesDescription -t $ExpectedStopTimeout 2>&1;$StopKeyword the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
                 }
@@ -175,7 +163,7 @@ Describe 'BackgroundDockerComposeProcess' {
         }
     }
 
-    Context 'Error cases' {
+    Context 'Error cases' -Tag ErrorCases {
         Context 'Invalid altered task start info' {
             BeforeEach {
                 Mock cmd {
@@ -255,7 +243,7 @@ Describe 'BackgroundDockerComposeProcess' {
                     { $DockerComposeProcess.Start() } | Should -Throw -ExceptionType ([StartBackgroundProcessException])
                     $DockerComposeProcess.IsAlive() | Should -BeFalse
                     $DockerComposeProcess.Stop() | Should -BeExactly 0
-                    $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process "
+                    $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
                 }
@@ -307,8 +295,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Stop()  | Should -BeExactly ([BackgroundTask]::KilledDueToStopTimeout)
                         $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
                         $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
-                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process /c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1 /c docker compose kill  2>&1 Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 "
-                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Docker Compose orchestrator process $( $DockerComposeProcess.Name ) stop failed. Trying to kill the Docker Compose orchestrator process. "
+                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;/c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;/c docker compose kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;"
+                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Docker Compose orchestrator process $( $DockerComposeProcess.Name ) stop failed. Trying to kill the Docker Compose orchestrator process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
                     }
                 }
@@ -358,8 +346,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Stop()  | Should -BeExactly ([BackgroundTask]::KilledDueToStopTimeout)
                         $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
                         $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
-                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process /c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1 Stopping the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 /c docker compose kill  2>&1 Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 "
-                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Unknown error occurred while trying to kill the process tree with PPID 1. Trying to kill the Docker Compose orchestrator process. "
+                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;/c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Stopping the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;/c docker compose kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;"
+                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Unknown error occurred while trying to kill the process tree with PPID 1. Trying to kill the Docker Compose orchestrator process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
                     }
                 }
@@ -400,8 +388,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         { $DockerComposeProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException])
                         $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
                         $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
-                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process /c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1 /c docker compose kill  2>&1 "
-                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Docker Compose orchestrator process $( $DockerComposeProcess.Name ) stop failed. Trying to kill the Docker Compose orchestrator process. "
+                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;/c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;/c docker compose kill  2>&1;"
+                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Docker Compose orchestrator process $( $DockerComposeProcess.Name ) stop failed. Trying to kill the Docker Compose orchestrator process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
                     }
                 }
@@ -439,8 +427,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         { $DockerComposeProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException])
                         $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
                         $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
-                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process /c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1 Stopping the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 /c docker compose kill  2>&1 Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1 "
-                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Unknown error occurred while trying to kill the process tree with PPID 1. Trying to kill the Docker Compose orchestrator process. "
+                        $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process;/c docker compose stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Stopping the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;/c docker compose kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;"
+                        $TestWarningOutput | Should -BeExactly "Failed to stop the $( $DockerComposeProcess.Name ) Docker Compose orchestrator process : Unknown error occurred while trying to kill the process tree with PPID 1. Trying to kill the Docker Compose orchestrator process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
                     }
                 }

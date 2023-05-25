@@ -32,7 +32,8 @@ Describe 'Cleanup logic check'
         It 'successfully stops the script without taking any advanced action'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 0
             The status should be success
-            The lines of stdout should equal 0
+            The stdout should be blank
+            The stderr should be blank
             The variable cleanup_count should eq 0
         End
     End
@@ -58,6 +59,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 0
             The status should be success
             The lines of stdout should equal 5
+            The stderr should be blank
             The variable cleanup_count should eq 0
             The line 1 of stdout should eq "Checked process existence :  1"
             The line 2 of stdout should eq "Checked process existence :  1"
@@ -88,6 +90,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 2
             The status should be success
             The lines of stdout should equal 5
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The line 1 of stdout should eq "Checked process existence :  1"
             The line 2 of stdout should eq "Checked process existence :  1"
@@ -118,6 +121,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 0
             The status should be success
             The lines of stdout should equal 4
+            The stderr should be blank
             The variable cleanup_count should eq 0
             The line 1 of stdout should eq "Checked process existence :  "
             The line 2 of stdout should eq "Eval : true"
@@ -147,6 +151,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 2
             The status should be success
             The lines of stdout should equal 4
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The line 1 of stdout should eq "Checked process existence :  "
             The line 2 of stdout should eq "Eval : kill_command"
@@ -176,6 +181,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 0
             The status should be success
             The lines of stdout should equal 6
+            The stderr should be blank
             The variable cleanup_count should eq 0
             The line 1 of stdout should eq "Checked process existence :  1"
             The line 2 of stdout should eq "Checked process existence :  1"
@@ -207,6 +213,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 2
             The status should be success
             The lines of stdout should equal 6
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The line 1 of stdout should eq "Checked process existence :  1"
             The line 2 of stdout should eq "Checked process existence :  1"
@@ -238,6 +245,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 2
             The status should be success
             The lines of stdout should equal 6
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The line 1 of stdout should eq "Checked process existence : check_command 1"
             The line 2 of stdout should eq "Checked process existence :  1"
@@ -289,6 +297,7 @@ Describe 'Cleanup logic check'
             When call cleanup 0 "${AUTOMATED_CLEANUP}" 1
             The status should eq 130
             The lines of stdout should equal 14
+            The stderr should be blank
             The variable cleanup_count should eq 2
             The line 1 of stdout should eq "Checked process existence : check_command 1"
             The line 2 of stdout should eq "Checked process existence :  1"

@@ -13,6 +13,7 @@ Describe 'Retrieve process info'
             When call get_process_info $$
             The status should be success
             The stdout should be present
+            The stderr should be blank
         End
     End
 

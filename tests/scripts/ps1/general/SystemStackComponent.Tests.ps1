@@ -7,7 +7,7 @@ BeforeAll {
 }
 
 Describe 'SystemStack' {
-    It 'creates a standard system stack <associatedtag> <command> <version>' -TestCases @(
+    It 'creates a standard system stack <associatedtag> <command> <version>' -ForEach @(
         @{ AssociatedTag = "Command"; Command = "Command"; Version = [Version]::new(1,0); Expected = "Command version 1.0" }
         @{ AssociatedTag = "Command"; Command = "command"; Version = [Version]::new(1,0); Expected = "Command version 1.0" }
         @{ AssociatedTag = "command"; Command = "Command"; Version = [Version]::new(1,0); Expected = "command version 1.0" }

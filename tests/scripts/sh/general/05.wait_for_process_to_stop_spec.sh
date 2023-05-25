@@ -25,6 +25,7 @@ Describe 'Wait for process to stop'
                 When call wait_for_process_to_stop "$1" $$ 0
                 The status should be success
                 The stdout should eq "Waiting for $1 with PID $$ to stop (0 seconds) ..."
+                The stderr should be blank
             End
         End
 
@@ -48,6 +49,7 @@ Describe 'Wait for process to stop'
                     When call wait_for_process_to_stop "$1" $$ 5
                     The status should be success
                     The stdout should eq "Waiting for $1 with PID $$ to stop (5 seconds) ..."
+                    The stderr should be blank
                 End
             End
 

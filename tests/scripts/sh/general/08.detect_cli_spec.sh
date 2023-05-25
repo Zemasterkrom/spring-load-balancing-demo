@@ -32,6 +32,7 @@ Describe 'Detect Docker Compose CLI'
                 When call detect_compatible_available_docker_compose_cli
                 The status should be success
                 The stdout should eq "docker compose:$2"
+                The stderr should be blank
                 The variable docker_compose_cli should eq "docker compose"
                 The variable docker_compose_version should eq "$2"
                 The variable docker_detection_error should eq false
@@ -54,6 +55,7 @@ Describe 'Detect Docker Compose CLI'
                 When call detect_compatible_available_docker_compose_cli
                 The status should be success
                 The stdout should eq "docker-compose:$2"
+                The stderr should be blank
                 The variable docker_compose_cli should eq "docker-compose"
                 The variable docker_compose_version should eq "$2"
                 The variable docker_detection_error should eq false
@@ -95,6 +97,7 @@ Describe 'Detect Docker Compose CLI'
                     export version_string="$1"
                     When call detect_compatible_available_docker_compose_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable docker_compose_cli should be blank
                     The variable docker_compose_version should be blank
                     The variable docker_detection_error should eq true
@@ -116,6 +119,7 @@ Describe 'Detect Docker Compose CLI'
                     export version_string="$1"
                     When call detect_compatible_available_docker_compose_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable docker_compose_cli should be blank
                     The variable docker_compose_version should be blank
                     The variable docker_detection_error should eq true
@@ -131,6 +135,7 @@ Describe 'Detect Docker Compose CLI'
             It "fails since the Docker daemon isn't available"
                 When call detect_compatible_available_docker_compose_cli
                 The status should eq 126
+                The stdout should be blank
                 The variable docker_compose_cli should be blank
                 The variable docker_compose_version should be blank
                 The variable docker_detection_error should eq true
@@ -152,6 +157,7 @@ Describe 'Detect Docker Compose CLI'
             It "fails since the Docker daemon isn't available"
                 When call detect_compatible_available_docker_compose_cli
                 The status should eq 126
+                The stdout should be blank
                 The variable docker_compose_cli should be blank
                 The variable docker_compose_version should be blank
                 The variable docker_detection_error should eq true
@@ -194,6 +200,7 @@ Describe 'Detect Java CLI'
                 When call detect_compatible_available_java_cli
                 The status should be success
                 The stdout should eq "java:$2"
+                The stderr should be blank
                 The variable java_cli should eq java
                 The variable java_version should eq "$2"
             End
@@ -255,6 +262,7 @@ Describe 'Detect Java CLI'
                     export version_string="$1"
                     When call detect_compatible_available_java_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable java_cli should be blank
                     The variable java_version should be blank
                 End
@@ -269,6 +277,7 @@ Describe 'Detect Java CLI'
                     export version_string="$1"
                     When call detect_compatible_available_java_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable java_cli should be blank
                     The variable java_version should be blank
                 End
@@ -283,6 +292,7 @@ Describe 'Detect Java CLI'
             It "fails since a Java system error occurs"
                 When call detect_compatible_available_java_cli
                 The status should eq 126
+                The stdout should be blank
                 The variable java_cli should be blank
                 The variable java_version should be blank
             End
@@ -325,6 +335,7 @@ Describe 'Detect Node CLI'
             When call detect_compatible_available_node_cli
             The status should be success
             The stdout should eq "node:$2"
+            The stderr should be blank
             The variable node_cli should eq node
             The variable node_version should eq "$2"
         End
@@ -378,6 +389,7 @@ Describe 'Detect Node CLI'
                     export version_string="$1"
                     When call detect_compatible_available_node_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable node_cli should be blank
                     The variable node_version should be blank
                 End
@@ -392,6 +404,7 @@ Describe 'Detect Node CLI'
             It "fails since a Node system error occurs"
                 When call detect_compatible_available_node_cli
                 The status should eq 126
+                The stdout should be blank
                 The variable node_cli should be blank
                 The variable node_version should be blank
             End
@@ -436,6 +449,7 @@ Describe 'Detect Maven CLI'
             When call detect_compatible_available_maven_cli
             The status should be success
             The stdout should eq "maven:$2"
+            The stderr should be blank
             The variable maven_cli should eq maven
             The variable maven_version should eq "$2"
         End
@@ -480,6 +494,7 @@ Describe 'Detect Maven CLI'
                 It "fails since the Maven version isn't compatible ($1)"
                     When call detect_compatible_available_node_cli
                     The status should eq 127
+                    The stdout should be blank
                     The variable maven_cli should be blank
                     The variable maven_version should be blank
                 End
@@ -494,6 +509,7 @@ Describe 'Detect Maven CLI'
             It "fails since a Maven system error occurs"
                 When call detect_compatible_available_maven_cli
                 The status should eq 126
+                The stdout should be blank
                 The variable maven_cli should be blank
                 The variable maven_version should be blank
             End
@@ -516,6 +532,7 @@ Describe 'Auto-choose system stack'
                 The status should be success
                 The line 1 of stdout should eq "Auto-choosing the launch method ..."
                 The line 2 of stdout should eq "Docker Compose (docker compose) version 1.29.0"
+                The stderr should be blank
                 The variable environment should eq "${DOCKER_ENVIRONMENT}"
             End
         End
@@ -553,6 +570,7 @@ Describe 'Auto-choose system stack'
                 The line 2 of stdout should eq "Java version 17.0.0"
                 The line 3 of stdout should eq "Maven version 3.5.0"
                 The line 4 of stdout should eq "Node version 16.0.0"
+                The stderr should be blank
                 The variable environment should eq "${SYSTEM_ENVIRONMENT}"
             End
         End

@@ -261,6 +261,14 @@ function Get-ScriptRoot {
     return $PSScriptRoot
 }
 
+function Invoke-ExitScript {
+    Param(
+        [Parameter(Position = 0, Mandatory = $false)] [Byte] $ExitCode = 0
+    )
+
+    exit $ExitCode
+}
+
 ###############################
 # Environment related classes #
 ###############################
@@ -355,7 +363,7 @@ class SystemStackDetector {
         }
 
         if ($ChoosenSystemStackTag -eq [SystemStackTag]::Docker) {
-            if (($DockerComposeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($DockerComposeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredDockerComposeVersion)) {
+            if (([String]$DockerComposeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($DockerComposeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredDockerComposeVersion)) {
                 return [SystemStackComponent]::new("Docker Compose", $DockerComposeCli, $DockerComposeVersion)
             }
         }
@@ -379,7 +387,7 @@ class SystemStackDetector {
             $JavaVersion = $_.Exception.Message
         }
 
-        if (($JavaVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($JavaVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredJavaVersion)) {
+        if (([String]$JavaVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($JavaVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredJavaVersion)) {
             return [SystemStackComponent]::new("Java", "java", $JavaVersion)
         }
 
@@ -400,7 +408,7 @@ class SystemStackDetector {
             return $null
         }
 
-        if (($MavenVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($MavenVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredMavenVersion)) {
+        if (([String]$MavenVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($MavenVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredMavenVersion)) {
             return [SystemStackComponent]::new("Maven", "mvn", $MavenVersion)
         }
 
@@ -421,7 +429,7 @@ class SystemStackDetector {
             return $null
         }
 
-        if (($NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
+        if (([String]$NodeVersion -match "^[^0-9]*([0-9]+)\.([0-9]+)(?:\.(?=[0-9]+)([0-9]+))?.*$") -and (($NodeVersion = [Version]::new($Matches[1], $Matches[2], $Matches[3])) -ge [SystemStackDetector]::RequiredNodeVersion)) {
             return [SystemStackComponent]::new("Node", "node", $NodeVersion)
         }
 
@@ -597,7 +605,7 @@ class EnvironmentContext {
     [ValidateNotNull()] [Boolean] $AdvancedCleanupExecuted
 
     # Cleanup termination exit code
-    [ValidateRange(0, 255)] [Int] $CleanupExitCode
+    [Byte] $CleanupExitCode
 
     <#
         .DESCRIPTION
@@ -621,10 +629,13 @@ class EnvironmentContext {
 
     SetLocationToScriptPath() {
         if ((Test-Path env:SCRIPT_PATH) -and ($env:SCRIPT_PATH -ne $this.ScriptPath)) {
-            $this.ScriptPath = $env:SCRIPT_PATH
+            $this.ScriptPath = (Resolve-Path $env:SCRIPT_PATH).Path
+            $env:SCRIPT_PATH = $this.ScriptPath
         }
 
-        Set-Location $this.ScriptPath
+        if ("$PWD" -ne $this.ScriptPath) {
+            Set-Location $this.ScriptPath
+        }
     }
 
     ResetLocationToInitialPath() {
@@ -1420,8 +1431,10 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
             }
 
             $this.DockerComposeCli =  [SystemStack]::new([SystemStackTag]::Docker, @($DetectedDockerComposeCli))
+        } else {
+            $this.DockerComposeCli = $CurrentSystemStack
         }
-
+        
         if ($null -eq $this.TaskStartInfo.Services) {
             $this.TaskStartInfo.Services = @()
         }
@@ -1728,27 +1741,34 @@ class Runner {
             --source-only : don't run the demo at all. Useful for testing.
     #>
     static [Void] Main([String[]] $Options) {
-        [SystemStackDetector]::ChoosenSystemStack = $null
-        [Runner]::EnvironmentContext = [EnvironmentContext]::new()
-        [Runner]::Tasks = @()
-
-        # Parse run arguments
-        foreach ($Option in $Options) {
-            switch ($Option) {
-                --no-start {
-                    [Runner]::EnvironmentContext.EnableStart($false)
-                }
-                --no-build {
-                    [Runner]::EnvironmentContext.EnableBuild($false)
-                }
-                --no-load-balancing {
-                    [Runner]::EnvironmentContext.EnableLoadBalancing($false)
-                    [Runner]::EnvironmentContext.SetEnvironmentFile("no-load-balancing.env", "utf8")
-                }
-                --source-only {
-                    [Runner]::EnvironmentContext.EnableSourceOnlyMode($true)
+        try {
+            [SystemStackDetector]::ChoosenSystemStack = $null
+            [Runner]::EnvironmentContext = [EnvironmentContext]::new()
+            [Runner]::Tasks = @()
+    
+            # Parse run arguments
+            foreach ($Option in $Options) {
+                switch ($Option) {
+                    --no-start {
+                        [Runner]::EnvironmentContext.EnableStart($false)
+                    }
+                    --no-build {
+                        [Runner]::EnvironmentContext.EnableBuild($false)
+                    }
+                    --no-load-balancing {
+                        [Runner]::EnvironmentContext.EnableLoadBalancing($false)
+                        [Runner]::EnvironmentContext.SetEnvironmentFile("no-load-balancing.env", "UTF8")
+                    }
+                    --source-only {
+                        [Runner]::EnvironmentContext.EnableSourceOnlyMode($true)
+                    }
                 }
             }
+        } catch {
+            Write-Error $_.Exception.Message -ErrorAction Continue
+            [Runner]::Cleanup(1)
+        } finally {
+            [Runner]::EnvironmentContext.ResetLocationToInitialPath()
         }
 
         # Execute if not sourced
@@ -1758,17 +1778,32 @@ class Runner {
     }
 
     hidden static [Void] Run() {
+        # Auto-choose the launch / environment method
+        [Runner]::AutoChooseSystemStack()
+
+        # Auto-configure the environment and environment variables
+        [Runner]::ConfigureEnvironmentVariables()
+
+        # Build demo packages
+        [Runner]::Build()
+
+        # Ready : start the demo !
+        [Runner]::Start()
+    }
+
+    <#
+        .DESCRIPTION
+            Auto-choose the launch / environment method
+    #>
+    hidden static [Void] AutoChooseSystemStack() {
         try {
-            # Auto-configure the environment and environment variables
-            [Runner]::Configure()
-
-            # Build demo packages
-            [Runner]::Build()
-
-            # Ready : start the demo !
-            [Runner]::Start()
-        } finally {
-            [Runner]::Cleanup(130)
+            if (([Runner]::EnvironmentContext.Start) -or ([Runner]::EnvironmentContext.Build)) {
+                [Runner]::EnvironmentContext.SetSystemStack([SystemStackDetector]::RetrieveMostAppropriateSystemStack())
+                Write-Information ([Runner]::EnvironmentContext.SystemStack.ToString())
+            }
+        } catch [System.Management.Automation.CommandNotFoundException] {
+            Write-Error $_.Exception.Message -ErrorAction Continue
+            [Runner]::Cleanup(127)
         }
     }
 
@@ -1776,34 +1811,46 @@ class Runner {
         .DESCRIPTION
             Auto-configure some variables related to the Git / DNS environment
     #>
-    hidden static [Void] Configure() {
+    hidden static [Void] ConfigureEnvironmentVariables() {
         try {
-            [Runner]::SetLocationToScriptPath()
+            [Runner]::EnvironmentContext.SetLocationToScriptPath()
             [Console]::TreatControlCAsInput = $false
 
             if ([Runner]::EnvironmentContext.Start) {
                 Write-Information "Reading environment variables ..."
                 [Runner]::EnvironmentContext.ReadEnvironmentFile()
-
+                
                 Write-Information "Environment auto-configuration ..."
-                $env:GIT_CONFIG_BRANCH = Invoke-And -ReturnObject git rev-parse --abbrev-ref HEAD
-                $env:LOADBALANCER_HOSTNAME = [System.Net.Dns]::GetHostName()
+
+                try {
+                    $env:GIT_CONFIG_BRANCH = Invoke-And -ReturnObject git rev-parse --abbrev-ref HEAD
+                } catch {
+                    $env:GIT_CONFIG_BRANCH = "master"
+                }
+
+                try {
+                    $env:LOADBALANCER_HOSTNAME = hostname
+                } catch {
+                    $env:LOADBALANCER_HOSTNAME = "localhost"
+                }
+
                 $env:API_HOSTNAME = $env:LOADBALANCER_HOSTNAME
                 $env:API_TWO_HOSTNAME = $env:LOADBALANCER_HOSTNAME
-                [Runner]::EnvironmentContext.SetSystemStack([SystemStackDetector]::RetrieveMostAppropriateSystemStack())
-
-                Write-Information ([Runner]::EnvironmentContext.SystemStack)
 
                 if ([Runner]::EnvironmentContext.SystemStack.Tag -eq [SystemStackTag]::System) {
                     $env:CONFIG_SERVER_URL = "http://localhost:$env:CONFIG_SERVER_PORT"
-                    $env:EUREKA_SERVERS_URLS = "http://localhost:$env:DISCOVERY_SERVER_PORT/eureka"
+                    
+                    if ([Runner]::EnvironmentContext.LoadBalancing -eq $true) {
+                        $env:EUREKA_SERVERS_URLS = "http://localhost:$env:DISCOVERY_SERVER_PORT/eureka"
+                        [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("CONFIG_SERVER_URL", "EUREKA_SERVERS_URLS"))
+                    } else {
+                        $env:EUREKA_SERVERS_URLS = ""
+                    }
 
                     Remove-Item env:\DB_URL -ErrorAction SilentlyContinue
                     Remove-Item env:\DB_USERNAME -ErrorAction SilentlyContinue
                     Remove-Item env:\DB_PASSWORD -ErrorAction SilentlyContinue
                     Remove-Item env:\DB_PORT -ErrorAction SilentlyContinue
-
-                    [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("CONFIG_SERVER_URL", "EUREKA_SERVERS_URLS"))
                 }
 
                 [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("GIT_CONFIG_BRANCH", "LOADBALANCER_HOSTNAME", "API_HOSTNAME", "API_TWO_HOSTNAME"))
@@ -1821,7 +1868,6 @@ class Runner {
             }
         } finally {
             [Runner]::EnvironmentContext.ResetLocationToInitialPath()
-            $env:SCRIPT_PATH = ""
         }
     }
 
@@ -1831,6 +1877,9 @@ class Runner {
      #>
     hidden static [Void] Build() {
         try {
+            [Runner]::EnvironmentContext.SetLocationToScriptPath()
+            [Runner]::AutoChooseSystemStack()
+
             if ([Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker) -and [Runner]::EnvironmentContext.Build) {
                 # Docker build
                 Write-Information "Building images and packages ..."
@@ -1879,14 +1928,12 @@ class Runner {
                     Invoke-And Set-Location ..
                 }
             }
+        } catch [System.Management.Automation.CommandNotFoundException] {
+            Write-Error $_.Exception.Message -ErrorAction Continue
+            [Runner]::Cleanup(127)
         } catch {
             Write-Error $_.Exception.Message -ErrorAction Continue
-
-            if ($LASTEXITCODE) {
-                [Runner]::Cleanup($LASTEXITCODE)
-            } else {
-                [Runner]::Cleanup(9)
-            }
+            [Runner]::Cleanup(9)
         } finally {
             [Runner]::EnvironmentContext.ResetLocationToInitialPath()
         }
@@ -1898,7 +1945,11 @@ class Runner {
      #>
     hidden static [Void] Start() {
         try {
+            [Runner]::EnvironmentContext.SetLocationToScriptPath()
+            
             if ([Runner]::EnvironmentContext.Start) {
+                [Runner]::AutoChooseSystemStack()
+                
                 if ( [Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker)) {
                     # Docker run
                     Write-Output "Launching Docker services ..."
@@ -1982,14 +2033,12 @@ class Runner {
                     Start-Sleep -Seconds 1
                 }
             }
+        } catch [System.Management.Automation.CommandNotFoundException] {
+            Write-Error $_.Exception.Message -ErrorAction Continue
+            [Runner]::Cleanup(127)
         } catch [StartBackgroundTaskException] {
             Write-Error $_.Exception.Message -ErrorAction Continue
-
-            if ($LASTEXITCODE) {
-                [Runner]::Cleanup($LASTEXITCODE)
-            } else {
-                [Runner]::Cleanup(10)
-            }
+            [Runner]::Cleanup(10)
         } catch {
             Write-Error $_.Exception.Message -ErrorAction Continue
             [Runner]::Cleanup(11)
@@ -2005,7 +2054,7 @@ class Runner {
         .PARAM Code
             Cleanup exit code
     #>
-    hidden static [Void] Cleanup([Int] $Code) {
+    hidden static [Void] Cleanup([Byte] $Code) {
         try {
             if (([Runner]::EnvironmentContext.CleanupExitCode -eq 0) -or ([Runner]::EnvironmentContext.CleanupExitCode -ne 130)) {
                 [Runner]::EnvironmentContext.CleanupExitCode = $Code
@@ -2013,10 +2062,6 @@ class Runner {
 
             # Environment cleanup
             if (-not([Runner]::EnvironmentContext.BasicCleanUpExecuted)) {
-                if ( "$pwd".Contains("vglfront")) {
-                    Set-Location ..
-                }
-
                 foreach ($Key in [Runner]::EnvironmentContext.EnvironmentVariables) {
                     if (Test-Path env:\"$Key") {
                         Write-Information "Removing environment variable $Key"
@@ -2060,7 +2105,7 @@ class Runner {
 
             [Console]::TreatControlCAsInput = $false
             [SystemStackDetector]::ChoosenSystemStack = $null
-            exit [Runner]::EnvironmentContext.CleanupExitCode
+            Invoke-ExitScript ([Runner]::EnvironmentContext.CleanupExitCode)
         } finally {
             [Runner]::EnvironmentContext.ResetLocationToInitialPath()
         }

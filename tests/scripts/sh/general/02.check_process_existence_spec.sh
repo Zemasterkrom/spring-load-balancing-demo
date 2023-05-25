@@ -12,26 +12,36 @@ Describe 'Check process existence'
         It 'returns directly since the current process exists'
             When call check_process_existence "" $$
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
         End
 
         It 'directly returns since the custom check command succeeds'
             When call check_process_existence true $$
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
         End
 
         It 'directly returns since the custom check command succeeds, even if no PID is filled in'
             When call check_process_existence true ""
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
         End
 
         It "returns directly since the custom check command succeeds, even the PID isn't associated to a real process"
             When call check_process_existence true 999999
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
         End
 
         It 'returns directly since the basic check succeed'
             When call check_process_existence "(exit 1)" $$
             The status should be success
+            The stdout should be blank
+            The stderr should be blank
         End
     End
 

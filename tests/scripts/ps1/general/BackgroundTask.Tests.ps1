@@ -15,7 +15,7 @@ class MockedBackgroundTask: BackgroundTask {
 '@
     }
 
-    Context 'Task creation' -ForEach @(
+    Context 'Task creation' -Tag TaskCreation -ForEach @(
         @{ TaskStartInfo = @{}; TaskStopInfo = @{}; Name = "BasicTask"; TemporaryFileCheckEnabled = $false; ExpectedTaskStopInfo = @{
             StandardStopTimeout = [BackgroundTask]::StandardStopTimeout
             KillTimeout = [BackgroundTask]::KillTimeout
@@ -96,29 +96,9 @@ class MockedBackgroundTask: BackgroundTask {
         }
     }
 
-    Context 'Temporary file synchronization' {
+    Context 'Temporary file synchronization' -Tag TemporaryFileSynchronization {
         BeforeEach {
-            Mock Write-Warning {
-                $global:TestWarningOutput += Write-Output ($Message + " ")
-            }
-    
-            Mock Write-Error {
-                $global:TestErrorOutput += Write-Output ($Message + " ")
-            }
-    
-            Mock Write-Information {
-                $global:TestOutput += Write-Output ($MessageData + " ")
-            }
-            
-            $global:TestOutput = ""
-            $global:TestWarningOutput = ""
-            $global:TestErrorOutput = ""
-        }
-
-        AfterEach {
-            $global:TestOutput = ""
-            $global:TestWarningOutput = ""
-            $global:TestErrorOutput = ""
+            Reset-TestOutput
         }
 
         Context 'Successful temporary file creation' {
@@ -142,7 +122,7 @@ class MockedBackgroundTaskTwo: BackgroundTask {
                 $BackgroundTask.CheckedTemporaryFileExistence | Should -BeTrue
                 $BackgroundTask.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitCompleted)
                 "$env:TEMP\$($BackgroundTask.TemporaryFileName)" | Should -Not -Exist
-                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) "
+                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
                 $TestWarningOutput | Should -BeNullOrEmpty
                 $TestErrorOutput | Should -BeNullOrEmpty
             }
@@ -181,8 +161,8 @@ class MockedBackgroundTaskThree: BackgroundTask {
                 $BackgroundTask.CheckedTemporaryFileExistence | Should -BeTrue
                 $BackgroundTask.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::ProcessHasAlreadyExited)
                 "$env:TEMP\$($BackgroundTask.TemporaryFileName)" | Should -Not -Exist
-                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) "
-                $TestWarningOutput | Should -BeExactly "ProcessHasAlreadyExitedTest has already exited "
+                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
+                $TestWarningOutput | Should -BeExactly "ProcessHasAlreadyExitedTest has already exited;"
                 $TestErrorOutput | Should -BeNullOrEmpty
             }
         }
@@ -207,13 +187,13 @@ class MockedBackgroundTaskThree: BackgroundTask {
                 $BackgroundTask.CheckedTemporaryFileExistence | Should -BeTrue
                 $BackgroundTask.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::ProcessHasAlreadyExited)
                 "$env:TEMP\$($BackgroundTask.TemporaryFileName)" | Should -Not -Exist
-                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) "
-                $TestWarningOutput | Should -BeExactly "ProcessHasAlreadyExitedTest has already exited "
+                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
+                $TestWarningOutput | Should -BeExactly "ProcessHasAlreadyExitedTest has already exited;"
                 $TestErrorOutput | Should -BeNullOrEmpty
             }
         }
 
-        Context "Temporary file synchronization timeout" {
+        Context "Temporary file synchronization timeout" -Tag TemporaryFileSynchronizationTimeout {
             BeforeEach {
                 Mock Start-Sleep {}
 
@@ -234,13 +214,13 @@ class MockedBackgroundTaskFour: BackgroundTask {
                 $BackgroundTask.SyncWithTemporaryFile() | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
                 $BackgroundTask.CheckedTemporaryFileExistence | Should -BeTrue
                 $BackgroundTask.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
-                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) "
+                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
                 $TestWarningOutput | Should -BeNullOrEmpty
-                $TestErrorOutput | Should -BeExactly "Failed to wait for the creation of the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file "
+                $TestErrorOutput | Should -BeExactly "Failed to wait for the creation of the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file;"
             }
         }
 
-        Context "Temporary file deletion error" {
+        Context "Temporary file deletion error" -Tag TemporaryFileDeletionError {
             BeforeEach {
                 Mock Start-Sleep {}
                 Mock Test-Path {
@@ -267,14 +247,14 @@ class MockedBackgroundTaskFive: BackgroundTask {
                 $BackgroundTask.SyncWithTemporaryFile() | Should -BeExactly ([BackgroundTask]::FailedRemovingTmpFile)
                 $BackgroundTask.CheckedTemporaryFileExistence | Should -BeTrue
                 $BackgroundTask.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::FailedRemovingTmpFile)
-                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds) "
-                $TestWarningOutput | Should -BeExactly "Failed removing the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) temporary file "
+                $TestOutput | Should -BeExactly "Waiting for $( $BackgroundTask.Name ) to create the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
+                $TestWarningOutput | Should -BeExactly "Failed removing the $env:TEMP\$( $BackgroundTask.TemporaryFileName ) temporary file;"
                 $TestErrorOutput | Should -BeNullOrEmpty
             }
         }
     }
 
-    Context 'Invalid task creation' -ForEach @(
+    Context 'Invalid task creation' -Tag InvalidTaskCreation -ForEach @(
         @{ TaskStartInfo = @{}; TaskStopInfo = @{
             StandardStopTimeout = -1
         }; Name = "BasicTaskWithInvalidNegativeStandardStopTimeout"; TemporaryFileCheckEnabled = $false; ExpectedExceptionType = [System.InvalidOperationException]}
@@ -304,7 +284,7 @@ class MockedBackgroundTaskFive: BackgroundTask {
         }
     }
 
-    Context 'Invalid task start info' {
+    Context 'Invalid task start info' -Tag InvalidTaskStartInfo {
         BeforeEach {
             Invoke-Expression @'
 class MockedBackgroundTaskSix: BackgroundTask {
@@ -322,7 +302,7 @@ class MockedBackgroundTaskSix: BackgroundTask {
         }
     }
 
-    Context 'Invalid altered task start info on start' {
+    Context 'Invalid altered task start info on start' -Tag InvalidAlteredTaskStartInfoOnStart {
         BeforeEach {
             Invoke-Expression @'
 class MockedBackgroundTaskEight: BackgroundTask {
@@ -349,7 +329,7 @@ class MockedBackgroundTaskEight: BackgroundTask {
         }
     }
 
-    Context 'Invalid task stop info' {
+    Context 'Invalid task stop info' -Tag InvalidTaskStopInfo {
         BeforeEach {
             Invoke-Expression @'
 class MockedBackgroundTaskNine: BackgroundTask {
@@ -395,7 +375,7 @@ class MockedBackgroundTaskEleven: BackgroundTask {
     }
 
     
-    Context 'Invalid pre check setup' {
+    Context 'Invalid pre check setup' -Tag InvalidPreCheckSetup {
         BeforeEach {
             Invoke-Expression @'
 class MockedBackgroundTaskTwelve: BackgroundTask {
@@ -413,7 +393,7 @@ class MockedBackgroundTaskTwelve: BackgroundTask {
         }
     }
 
-    Context 'Invalid abstract class uses' {
+    Context 'Invalid abstract class uses' -Tag InvalidAbstractClassUses {
         BeforeEach {
             $BackgroundTask = [MockedBackgroundTask]::new(@{}, @{}, "AbstractClassBehaviorCheck", $false)
         }

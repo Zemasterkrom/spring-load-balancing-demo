@@ -15,7 +15,7 @@ Describe 'EnvironmentContext' {
         $env:SCRIPT_PATH = $SCRIPT_PATH
     }
 
-    Describe 'Set environment variable keys' {
+    Context 'Set environment variable keys' -Tag SetEnvironmentVariableKeys {
         Context 'Valid keys' -ForEach @(
             @{ Keys = @("TestOne", "TestTwo")}
             @{ Keys = @("Test_One", "Test_Two")}
@@ -65,7 +65,7 @@ Describe 'EnvironmentContext' {
         }
     }
 
-    Describe 'Add environment variable keys' {
+    Describe 'Add environment variable keys' -Tag AddEnvironmentVariableKeys {
         Context 'Valid keys' -ForEach @(
             @{ Keys = @("TestOne", "TestTwo"); ExpectedKeys = @("Test", "TestOne", "TestTwo") }
             @{ Keys = @("Test_One", "Test_Two"); ExpectedKeys = @("Test", "Test_One", "Test_Two") }
@@ -110,7 +110,7 @@ Describe 'EnvironmentContext' {
         }
     }
 
-    Describe 'Read environment variables' {
+    Describe 'Read environment variables' -Tag ReadEnvironmentVariables {
         BeforeEach {
             $EnvironmentContext = [EnvironmentContext]::new()
         }
@@ -140,7 +140,7 @@ Describe 'EnvironmentContext' {
         }
     }
 
-    Context 'Set script location' {
+    Context 'Set script location' -Tag SetScriptLocation {
         Context 'Set without location hint' {
             BeforeEach {
                 Mock Set-Location {}

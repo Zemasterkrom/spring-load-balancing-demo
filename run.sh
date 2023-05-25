@@ -10,7 +10,7 @@ cd_to_script_dir() {
     if [ -n "${context_dir}" ]; then
       cd_dir="${context_dir}"
     elif [ "${0%run.sh}" != "$0" ]; then
-      cd_dir="$(dirname -- "$0")"
+      cd_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
     fi
 
     if [ -n "${cd_dir}" ] && ! cd "${cd_dir}" >/dev/null 2>&1; then
@@ -821,7 +821,7 @@ configure_environment_variables() {
   if ${start}; then
     echo "Reading environment variables ..."
 
-    if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
+    if [ "${mode}" = "${LOAD_BALANCING_MODE}" ]; then
       environment_file=.env
     else
       environment_file=no-load-balancing.env
@@ -843,10 +843,15 @@ configure_environment_variables() {
       export API_HOSTNAME="${LOADBALANCER_HOSTNAME}"
       export API_TWO_HOSTNAME="${LOADBALANCER_HOSTNAME}"
 
-      if [ "${environment}" -eq "${SYSTEM_ENVIRONMENT}" ]; then # System-dependent servers settings
+      if [ "${environment}" = "${SYSTEM_ENVIRONMENT}" ]; then # System-dependent servers settings
         export CONFIG_SERVER_URL="http://localhost:${CONFIG_SERVER_PORT}"
-        export EUREKA_SERVERS_URLS="http://localhost:${DISCOVERY_SERVER_PORT}/eureka"
-
+        
+        if [ "${mode}" = "${LOAD_BALANCING_MODE}" ]; then
+          export EUREKA_SERVERS_URLS="http://localhost:${DISCOVERY_SERVER_PORT}/eureka"
+        else
+          unset EUREKA_SERVERS_URLS
+        fi
+        
         unset DB_URL
         unset DB_USERNAME
         unset DB_PASSWORD

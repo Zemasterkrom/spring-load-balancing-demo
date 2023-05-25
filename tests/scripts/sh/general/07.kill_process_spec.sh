@@ -26,6 +26,7 @@ Describe 'Kill process'
             The line 1 of stdout should eq "Stopping StopExistingProcess with PID ${test_PID}"
             The line 2 of stdout should eq "Waiting for StopExistingProcess with PID ${test_PID} to stop (1 seconds) ..."
             The line 3 of stdout should eq "Stopped StopExistingProcess with PID ${test_PID}"
+            The stderr should be blank
             Assert process_is_killed
         End
 
@@ -35,6 +36,7 @@ Describe 'Kill process'
             The line 1 of stdout should eq "Force killing ForceKillExistingProcess with PID ${test_PID}"
             The line 2 of stdout should eq "Waiting for ForceKillExistingProcess with PID ${test_PID} to stop (1 seconds) ..."
             The line 3 of stdout should eq "Force killed ForceKillExistingProcess with PID ${test_PID}"
+            The stderr should be blank
             Assert process_is_killed
         End
     End

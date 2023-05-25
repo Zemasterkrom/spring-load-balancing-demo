@@ -12,6 +12,7 @@ Describe 'Wait until temporary runner file is ready'
         When call wait_until_tmp_runner_file_exists DirectTest "${TMP_DATA_FILE}" $$ 0
         The status should be success
         The stdout should eq "Waiting for DirectTest to create the ${TMP_DATA_FILE_LOCATION} file (0 seconds) ..."
+        The stderr should be blank
         The variable DirectTest_checked_tmp_runner_file should eq true
         The path "${TMP_DATA_FILE_LOCATION}" should not be exist
     End
@@ -32,6 +33,7 @@ Describe 'Wait until temporary runner file is ready'
             When call wait_until_tmp_runner_file_exists WaitTest "${TMP_DATA_FILE}_2" $$ 5
             The status should be success
             The stdout should eq "Waiting for WaitTest to create the ${TMP_DATA_FILE_LOCATION}_2 file (5 seconds) ..."
+            The stderr should be blank
             The variable WaitTest_checked_tmp_runner_file should eq true
             The path "${TMP_DATA_FILE_LOCATION}_2" should not be exist
         End

@@ -22,6 +22,7 @@ Describe 'Wait for process to start'
                 When call wait_for_process_to_start "$1" $$ 0
                 The status should be success
                 The stdout should eq "Waiting for $1 with PID $$ to start ... Please wait ..."
+                The stderr should be blank
                 The variable "$1_stime" should be blank
             End
         End
@@ -31,6 +32,7 @@ Describe 'Wait for process to start'
                 When call wait_for_process_to_start "$1" $$ 5
                 The status should be success
                 The stdout should eq "Waiting for $1 with PID $$ to start ... Please wait ..."
+                The stderr should be blank
                 The variable "$1_stime" should be blank
             End
 
@@ -57,6 +59,7 @@ Describe 'Wait for process to start'
                     When call wait_for_process_to_start "$1" $$ 5
                     The status should be success
                     The stdout should eq "Waiting for $1 with PID $$ to start ... Please wait ..."
+                    The stderr should be blank
                 End
 
                 Context 'get_process_info : mocked version (timeout simulation)'

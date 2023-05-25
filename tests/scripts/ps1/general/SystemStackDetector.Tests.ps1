@@ -25,7 +25,7 @@ Describe 'SystemStackDetector' {
                     Mock cmd {
                         if ($args -match "docker") {
                             $global:LASTEXITCODE = 0
-                            Write-Output $VersionString
+                            return $VersionString
                         }
                     }
                 }
@@ -50,7 +50,7 @@ Describe 'SystemStackDetector' {
 
                         if ($args -match "docker-compose") {
                             $global:LASTEXITCODE = 0
-                            Write-Output $VersionString
+                            return $VersionString
                         }
                     }
                 }
@@ -63,6 +63,7 @@ Describe 'SystemStackDetector' {
 
         Context 'Error cases' {
             Context 'Invalid / incompatible versions' -ForEach @(
+                @{ VersionString = $null }
                 @{ VersionString = "No version" }
                 @{ VersionString = "Docker Compose version" }
                 @{ VersionString = "Docker Compose version 2a.6-alpha" }
@@ -88,7 +89,7 @@ Describe 'SystemStackDetector' {
                         Mock cmd {
                             if ($args -match "docker") {
                                 $global:LASTEXITCODE = 0
-                                Write-Output $VersionString
+                                return $VersionString
                             }
                         }
                     }
@@ -110,7 +111,7 @@ Describe 'SystemStackDetector' {
     
                             if ($args -match "docker-compose") {
                                 $global:LASTEXITCODE = 0
-                                Write-Output $VersionString
+                                return $VersionString
                             }
                         }
                     }
@@ -177,7 +178,7 @@ Describe 'SystemStackDetector' {
             Context 'stdout echo' {
                 BeforeEach {
                     Mock java {
-                        Write-Output $VersionString
+                        return $VersionString
                     }
                 }
 
@@ -189,7 +190,7 @@ Describe 'SystemStackDetector' {
             Context 'stderr echo' {
                 BeforeEach {
                     Mock java {
-                        Write-Error $VersionString
+                        throw $VersionString
                     }
                 }
 
@@ -201,6 +202,7 @@ Describe 'SystemStackDetector' {
 
         Context 'Error cases' {
             Context 'Invalid / incompatible versions' -ForEach @(
+                @{ VersionString = $null }
                 @{ VersionString = "No version" }
                 @{ VersionString = 'openjdk version' }
                 @{ VersionString = 'openjdk version "17"' }
@@ -231,7 +233,7 @@ Describe 'SystemStackDetector' {
                 Context 'stdout echo' {
                     BeforeEach {
                         Mock java {
-                            Write-Output $VersionString
+                            return $VersionString
                         }
                     }
     
@@ -243,7 +245,7 @@ Describe 'SystemStackDetector' {
                 Context 'stderr echo' {
                     BeforeEach {
                         Mock java {
-                            Write-Error $VersionString
+                            throw $VersionString
                         }
                     }
     
@@ -256,7 +258,7 @@ Describe 'SystemStackDetector' {
             Context 'Java system error' {
                 BeforeEach {
                     Mock java {
-                        Write-Error ""
+                        throw ""
                     }
                 }
     
@@ -293,7 +295,7 @@ Describe 'SystemStackDetector' {
         ) {
             BeforeEach {
                 Mock node {
-                    Write-Output $VersionString
+                    return $VersionString
                 }
             }
 
@@ -304,6 +306,7 @@ Describe 'SystemStackDetector' {
 
         Context 'Error cases' {
             Context 'Invalid / incompatible versions' -ForEach @(
+                @{ VersionString = $null }
                 @{ VersionString = "v" }
                 @{ VersionString = "v15.9.9-alpha" }
                 @{ VersionString = "v15.9.9" }
@@ -341,7 +344,7 @@ Describe 'SystemStackDetector' {
             ) {
                 BeforeEach {
                     Mock node {
-                        Write-Output $VersionString
+                        return $VersionString
                     }
                 }
 
@@ -353,7 +356,7 @@ Describe 'SystemStackDetector' {
             Context 'Node system error' {
                 BeforeEach {
                     Mock Node {
-                        Write-Error ""
+                        throw ""
                     }
                 }
     
@@ -392,7 +395,7 @@ Describe 'SystemStackDetector' {
         ) {
             BeforeEach {
                 Mock mvn {
-                    Write-Output $VersionString
+                    return $VersionString
                 }
             }
 
@@ -403,6 +406,7 @@ Describe 'SystemStackDetector' {
 
         Context 'Error cases' {
             Context 'Invalid / incompatible versions' -ForEach @(
+                @{ VersionString = $null }
                 @{ VersionString = "Apache Maven" }
                 @{ VersionString = "Apache Maven 3" }
                 @{ VersionString = "Apache Maven 3.a" }
@@ -432,7 +436,7 @@ Describe 'SystemStackDetector' {
             ) {
                 BeforeEach {
                     Mock mvn {
-                        Write-Output $VersionString
+                        return $VersionString
                     }
                 }
 
@@ -444,7 +448,7 @@ Describe 'SystemStackDetector' {
             Context 'Maven system error' {
                 BeforeEach {
                     Mock mvn {
-                        Write-Error ""
+                        throw ""
                     }
                 }
     
