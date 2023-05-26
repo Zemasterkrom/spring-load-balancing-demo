@@ -349,22 +349,106 @@ class MockedRunner: Runner {
             }
         }
         
-        Context 'Environment variables cleanup' -ForEach @(
-            @{ EnvironmentVariables = @("TestVariable") }
-            @{ EnvironmentVariables = @("TestVariable", "TestVariableTwo") }
-        ) {
-            BeforeEach {
-                foreach ($EnvironmentVariable in $EnvironmentVariables) {
-                    Set-Item "env:$EnvironmentVariable" $true
+        Context 'Environment variables cleanup' {
+            Context 'Existing environment variables' -ForEach @(
+                @{ EnvironmentVariables = @("TestVariable") }
+                @{ EnvironmentVariables = @("TestVariable", "TestVariableTwo") }
+            ) {
+                BeforeEach {
+                    foreach ($EnvironmentVariable in $EnvironmentVariables) {
+                        Set-Item "env:$EnvironmentVariable" $true
+                    }
+    
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                    $EnvironmentContext.EnvironmentVariables = $EnvironmentVariables
+                }
+    
+                It "removes the environment variable <_> from the current environment" -ForEach $EnvironmentVariables {
+                    $EnvironmentContext.RemoveEnvironmentVariables()
+                    Test-Path env:\"$_" | Should -BeFalse
+                    $EnvironmentContext.EnvironmentVariables.Length | Should -BeExactly 0
+                    $TestOutput | Should -Match "Removing environment variable $_"
+                }
+            }
+            
+            Context 'Inexistent environment variables' -ForEach @(
+                @{ EnvironmentVariables = @("UnknownVariable") }
+                @{ EnvironmentVariables = @("UnknownVariable", "UnknownVariableTwo") }
+            ) {
+                BeforeEach {
+                    foreach ($EnvironmentVariable in $EnvironmentVariables) {
+                        if (Test-Path env:\"$EnvironmentVariable") {
+                            Remove-Item env:\"$EnvironmentVariable"
+                        }
+                    }
+    
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                    $EnvironmentContext.EnvironmentVariables = $EnvironmentVariables
                 }
 
-                [Runner]::Main(@("--source-only"))
-                [Runner]::EnvironmentContext.EnvironmentVariables = $EnvironmentVariables
+                It "does not remove the <_> environment variable from the current environment because it does not exist" -ForEach $EnvironmentVariables {
+                    $EnvironmentContext.RemoveEnvironmentVariables()
+                    Test-Path env:\"$_" | Should -BeFalse
+                    $EnvironmentContext.EnvironmentVariables.Length | Should -BeExactly 0
+                    $TestOutput | Should -Not -Match "Removing environment variable $_"
+                }
+            }
+        }
+
+        Context 'Stop running processes' -ForEach @(
+            @{ Type = [BackgroundProcess]; Name = "StopTestProcess" }
+            @{ Type = [BackgroundDockerComposeProcess]; Name = "StopDockerComposeTestProcess" }
+            @{ Type = [BackgroundJob]; Name = "StopTestJob" }
+        ) {
+            BeforeEach {
+                Mock cmd {
+                    $global:LASTEXITCODE = 0
+                    return "Docker Compose version 1.29"
+                }
+
+                Mock Start-Process {
+                    return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $false }
+                }
+
+                [Runner]::Tasks = @(
+                    [BackgroundTaskFactory]::new($false).buildTask(@{}, $Name, $Type)
+                )
+                [Runner]::EnvironmentContext.CleanupExitCode = 0
             }
 
-            It "removes the environment variable <_> from the current environment" -ForEach $EnvironmentVariables {
-                [Runner]::Cleanup(0)
-                Test-Path env:\"$_" | Should -BeFalse
+            Context 'Error cases' {
+                Context 'Task stop error' {
+                    BeforeEach {
+                        Mock Checkpoint-Placeholder {
+                            throw [StopBackgroundTaskException]::new("Fatal task stop error")
+                        }
+                    }
+            
+                    It "fails to stop the <name> task of type <type> because the process has failed to stop" {
+                        [Runner]::StopRunningProcesses()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 12
+                    }
+                }
+            
+                Context 'Unknown stop error' {
+                    BeforeEach {
+                        Mock Checkpoint-Placeholder {
+                            throw "Fatal unknown stop error"
+                        }
+                    }
+            
+                    It "fails to stop the <name> task of type <type> because an unknown error has occured"  {
+                        [Runner]::StopRunningProcesses()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 13
+                    }
+                }
+            }
+
+            Context 'Success cases' {
+                It "stops the <name> task of type <type> successfully" {
+                    [Runner]::StopRunningProcesses()
+                    [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 0
+                }
             }
         }
 
@@ -400,6 +484,7 @@ class MockedRunner: Runner {
     
                 It "executes the cleanup routine because the system does not have a compatible stack to run the demonstration : method name = <methodname>" {
                     [Runner]::$MethodName()
+                    [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 127
                     Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 127 }
                 }
             }
@@ -442,6 +527,7 @@ class MockedRunner: Runner {
     
                 It "executes the cleanup routine because the call to <methodname> failed : expected exit code = <expectedexitcode>" {
                     [Runner]::$MethodName()
+                    [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly $ExpectedExitCode
                     Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq $ExpectedExitCode }
                 }
             }
@@ -454,7 +540,7 @@ class MockedRunner: Runner {
                             return "Docker Compose version 1.29"
                         }
                         Mock Start-Process {
-                            throw "Process fatal error"
+                            throw "Docker fatal error"
                         }
         
                         [Runner]::Main(@("--source-only"))
@@ -462,6 +548,7 @@ class MockedRunner: Runner {
         
                     It "executes the cleanup routine because containers start failed" {
                         [Runner]::Start()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 10
                         Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 10 }
                     }
                 }
@@ -492,7 +579,64 @@ class MockedRunner: Runner {
         
                     It "executes the cleanup routine because process start failed" {
                         [Runner]::Start()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 10
                         Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 10 }
+                    }
+                }
+            }
+
+            Context 'Process stop error' {
+                BeforeEach {
+                    Mock cmd {
+                        $global:LASTEXITCODE = 0
+                        return "Docker Compose version 1.29"
+                    }
+                    Mock Start-Process {
+                        return New-MockObject -Type System.Diagnostics.Process -Properties @{ Id = 1; HasExited = $true }
+                    }
+                }
+                
+                Context 'Task stop error' {
+                    BeforeEach {
+                        Mock Checkpoint-Placeholder {
+                            throw [StopBackgroundTaskException]::new("Fatal task stop error")
+                        }
+        
+                        [Runner]::Main(@("--source-only"))
+                    }
+        
+                    It "executes the cleanup routine because containers stop failed" {
+                        [Runner]::Start()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 12
+                        Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 12 }
+                    }
+                }
+        
+                Context 'Unknown stop error' {
+                    BeforeEach {
+                        Mock Checkpoint-Placeholder {
+                            throw "Fatal unknown stop error"
+                        }
+
+                        [Runner]::Main(@("--source-only"))
+                    }
+        
+                    It "executes the cleanup routine because process stop failed" {
+                        [Runner]::Start()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 13
+                        Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 13 }
+                    }
+                }
+
+                Context 'Process stop success' {
+                    BeforeEach {
+                        Mock Checkpoint-Placeholder {}
+                    }
+    
+                    It "stops the tasks successfully" {
+                        [Runner]::Start()
+                        [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 3
+                        Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 3 }
                     }
                 }
             }

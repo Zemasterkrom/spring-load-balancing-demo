@@ -269,6 +269,8 @@ function Invoke-ExitScript {
     exit $ExitCode
 }
 
+function Checkpoint-Placeholder {}
+
 ###############################
 # Environment related classes #
 ###############################
@@ -598,12 +600,6 @@ class EnvironmentContext {
     # Choosen system stack to run the demo
     [ValidateNotNull()] [SystemStack] $SystemStack
 
-    # Flag that allows to set the basic cleanup as executed
-    [ValidateNotNull()] [Boolean] $BasicCleanupExecuted
-
-    # Flag that allows to set the advanced cleanup as executed
-    [ValidateNotNull()] [Boolean] $AdvancedCleanupExecuted
-
     # Cleanup termination exit code
     [Byte] $CleanupExitCode
 
@@ -622,8 +618,6 @@ class EnvironmentContext {
         $this.EnvironmentFileEncoding = "UTF8"
         $this.EnvironmentVariables = @()
         $this.SystemStack = [SystemStack]::new([SystemStackTag]::Docker, [SystemStackComponent[]]@([SystemStackComponent]::new("Docker Compose", "docker compose", [SystemStackDetector]::RequiredDockerComposeVersion)))
-        $this.BasicCleanupExecuted = $false
-        $this.AdvancedCleanupExecuted = $false
         $this.CleanupExitCode = 0
     }
 
@@ -698,6 +692,17 @@ class EnvironmentContext {
         }
 
         $this.EnvironmentVariables = $this.EnvironmentVariables | Select-Object -Unique | Group-Object -Property { $_.ToUpper() } | ForEach-Object { $_.Group[0] }
+    }
+
+    RemoveEnvironmentVariables() {
+        foreach ($Key in $this.EnvironmentVariables) {
+            if (Test-Path env:\"$Key") {
+                Write-Information "Removing environment variable $Key"
+                Remove-Item env:\"$Key"
+            }
+        }
+
+        $this.EnvironmentVariables = @()
     }
 
     ReadEnvironmentFile() {
@@ -1713,6 +1718,26 @@ class BackgroundTaskFactory {
     [BackgroundTask] buildJob([Hashtable] $JobStartInfo, [Hashtable] $JobStopInfo, [String] $Name) {
         return [BackgroundJob]::new($JobStartInfo, $JobStopInfo, $Name, $this.TemporaryFileCheckEnabled)
     }
+
+    [BackgroundTask] buildTask([Hashtable] $TaskStartInfo, [String] $Name, [System.Reflection.TypeInfo] $Type) {
+        switch ($Type) {
+            BackgroundProcess { return $this.buildProcess($TaskStartInfo, $Name) }
+            BackgroundDockerComposeProcess { return $this.buildDockerComposeProcess($TaskStartInfo, $Name) }
+            BackgroundJob { return $this.buildJob($TaskStartInfo, $Name) }
+        }
+
+        throw [System.InvalidOperationException]::new("Invalid BackgroundTask type passed to the factory method")
+    }
+
+    [BackgroundTask] buildTask([Hashtable] $TaskStartInfo, [Hashtable] $TaskStopInfo, [String] $Name, [System.Reflection.TypeInfo] $Type) {
+        switch ($Type) {
+            [BackgroundProcess] { return $this.buildProcess($TaskStartInfo, $TaskStopInfo, $Name) }
+            [BackgroundDockerComposeProcess] { return $this.buildDockerComposeProcess($TaskStartInfo, $TaskStopInfo, $Name) }
+            [BackgroundJob] { return $this.buildJob($TaskStartInfo, $TaskStopInfo, $Name) }
+        }
+
+        throw [System.InvalidOperationException]::new("Invalid BackgroundTask type passed to the factory method")
+    }
 }
 
 ##################
@@ -2023,11 +2048,18 @@ class Runner {
                         }
                     }
 
+                    $ShouldStop = $false
+
                     # Loop through tasks and exit if any has exited
                     foreach ($Task in [Runner]::Tasks) {
                         if (-not($Task.IsAlive())) {
                             [Runner]::Cleanup(3)
+                            $ShouldStop = $true
                         }
+                    }
+
+                    if ($ShouldStop) {
+                        break
                     }
 
                     Start-Sleep -Seconds 1
@@ -2060,54 +2092,48 @@ class Runner {
                 [Runner]::EnvironmentContext.CleanupExitCode = $Code
             }
 
-            # Environment cleanup
-            if (-not([Runner]::EnvironmentContext.BasicCleanUpExecuted)) {
-                foreach ($Key in [Runner]::EnvironmentContext.EnvironmentVariables) {
-                    if (Test-Path env:\"$Key") {
-                        Write-Information "Removing environment variable $Key"
-                        Remove-Item env:\"$Key"
-                    }
-                }
-
-                [Runner]::EnvironmentContext.BasicCleanupExecuted = $true
-            }
-
-            # Processes cleanup
-            if (-not([Runner]::EnvironmentContext.AdvancedCleanupExecuted)) {
-                foreach ($Task in [Runner]::Tasks) {
-                    # Allow cleanup interrupt: if CTRL-C is triggered, the cleanup will be restarted
-                    if ([Console]::KeyAvailable) {
-                        $keyboardKeyCombination = [Console]::ReadKey($true)
-
-                        if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
-                            [Runner]::Cleanup(130)
-                        }
-                    }
-
-                    # Stop the process
-                    try {
-                        $StopCode = $Task.Stop()
-
-                        if ($StopCode -ne [BackgroundTask]::SuccessfullyStopped) {
-                            [Runner]::EnvironmentContext.CleanupExitCode = $StopCode
-                        }
-                    } catch [StopBackgroundTaskException] {
-                        Write-Error $_.Exception.Message -ErrorAction Continue
-                        [Runner]::EnvironmentContext.CleanupExitCode = 12
-                    } catch {
-                        Write-Error $_.Exception.Message -ErrorAction Continue
-                        [Runner]::EnvironmentContext.CleanupExitCode = 13
-                    }
-                }
-
-                [Runner]::EnvironmentContext.AdvancedCleanupExecuted = $true
-            }
+            [Runner]::EnvironmentContext.RemoveEnvironmentVariables()
+            [Runner]::StopRunningProcesses()
 
             [Console]::TreatControlCAsInput = $false
             [SystemStackDetector]::ChoosenSystemStack = $null
             Invoke-ExitScript ([Runner]::EnvironmentContext.CleanupExitCode)
         } finally {
             [Runner]::EnvironmentContext.ResetLocationToInitialPath()
+        }
+    }
+
+    <#
+        .DESCRIPTION
+            Stops the running processes
+    #>
+    hidden static [Void] StopRunningProcesses() {
+        foreach ($Task in [Runner]::Tasks) {
+            # Allow cleanup interrupt: if CTRL-C is triggered, the cleanup will be restarted
+            if ([Console]::KeyAvailable) {
+                $keyboardKeyCombination = [Console]::ReadKey($true)
+
+                if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
+                    [Runner]::Cleanup(130)
+                }
+            }
+
+            # Stop the process
+            try {
+                $StopCode = $Task.Stop()
+
+                if ($StopCode -ne [BackgroundTask]::SuccessfullyStopped) {
+                    [Runner]::EnvironmentContext.CleanupExitCode = $StopCode
+                }
+
+                Checkpoint-Placeholder
+            } catch [StopBackgroundTaskException] {
+                Write-Error $_.Exception.Message -ErrorAction Continue
+                [Runner]::EnvironmentContext.CleanupExitCode = 12
+            } catch {
+                Write-Error $_.Exception.Message -ErrorAction Continue
+                [Runner]::EnvironmentContext.CleanupExitCode = 13
+            }
         }
     }
 }
