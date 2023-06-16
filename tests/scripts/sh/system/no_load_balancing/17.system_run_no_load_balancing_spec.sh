@@ -186,7 +186,7 @@ Describe 'System run (no Load Balancing)'
             fi
         }
 
-        It 'starts the demonstration with Docker and stops it successfully'
+        It 'starts the demonstration without Docker and stops it successfully'
             When call main --no-load-balancing
             The status should eq 130
             The line 1 of stdout should eq "Launching services ..."

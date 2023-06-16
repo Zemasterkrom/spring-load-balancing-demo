@@ -26,7 +26,7 @@ class InvokeAndException: Exception {
         Allows to execute commands with the && bash style
 
     .DESCRIPTION
-         If the command execution fails, an InvokeAndException is thrown
+         If the command execution fails, an exception will be thrown. In the event of a PowerShell error, the exception depends on the command being executed unsuccessfully, otherwise an InvokeAndException will be thrown.
 
     .PARAMETER ReturnObject
         If this option is enabled, the object of the invoked expression will be returned
@@ -54,39 +54,36 @@ function Invoke-And {
 
     try {
         if ($ReturnObject) {
-            $obj = Invoke-Expression @"
+            $Obj = Invoke-Expression @"
 $args
-"@
+"@ -ErrorAction Stop
         } else {
             Invoke-Expression @"
 $args | Out-Host
-"@
+"@ -ErrorAction Stop
         }
-
-        $code = if ($? -and ($LASTEXITCODE -eq 0) -or ($null -eq $LASTEXITCODE)) {
-            0
-        } else {
-            if ($null -ne $LASTEXITCODE) {
-                $LASTEXITCODE
-            } else {
-                1
-            }
-        }
-
-        if ($code -ne 0) {
-            throw [InvokeAndException]::new("Run failed with error code : $code", $code)
-        }
-
-        if ($ReturnObject) {
-            return $obj
-        }
-        else {
-            return $null
-        }
-    } catch [InvokeAndException] {
-        throw $_
     } catch {
-        throw [InvokeAndException]::new("Run failed with unknown error : " + $_.Exception.Message, 1, $_.Exception)
+        throw $_
+    }
+
+    $Code = if ($? -and ($LASTEXITCODE -eq 0) -or ($null -eq $LASTEXITCODE)) {
+        0
+    } else {
+        if ($null -ne $LASTEXITCODE) {
+            $LASTEXITCODE
+        } else {
+            1
+        }
+    }
+
+    if ($Code -ne 0) {
+        throw [InvokeAndException]::new("Run failed with error code : $Code", $Code)
+    }
+
+    if ($ReturnObject) {
+        return $Obj
+    } else {
+        return $null
     }
 }
 
@@ -267,6 +264,16 @@ function Invoke-ExitScript {
     )
 
     exit $ExitCode
+}
+
+function Watch-CleanupShortcut {
+    if ([Console]::KeyAvailable) {
+        $KeyboardKeyCombination = [Console]::ReadKey($true)
+
+        if ($KeyboardKeyCombination.Modifiers -eq "Control" -and $KeyboardKeyCombination.Key -eq "C") {
+            return $true
+        }
+    }
 }
 
 function Checkpoint-Placeholder {}
@@ -598,7 +605,7 @@ class EnvironmentContext {
     [ValidateNotNull()] [String[]] $EnvironmentVariables
 
     # Choosen system stack to run the demo
-    [ValidateNotNull()] [SystemStack] $SystemStack
+    [SystemStack] $SystemStack
 
     # Cleanup termination exit code
     [Byte] $CleanupExitCode
@@ -617,7 +624,7 @@ class EnvironmentContext {
         $this.EnvironmentFilePath = ".env"
         $this.EnvironmentFileEncoding = "UTF8"
         $this.EnvironmentVariables = @()
-        $this.SystemStack = [SystemStack]::new([SystemStackTag]::Docker, [SystemStackComponent[]]@([SystemStackComponent]::new("Docker Compose", "docker compose", [SystemStackDetector]::RequiredDockerComposeVersion)))
+        $this.SystemStack = $null
         $this.CleanupExitCode = 0
     }
 
@@ -1798,13 +1805,17 @@ class Runner {
 
         # Execute if not sourced
         if (-not([Runner]::EnvironmentContext.SourceOnly)) {
+            if ((-not([Runner]::EnvironmentContext.Start))-and (-not([Runner]::EnvironmentContext.Build))) {
+                break
+            }
+
             [Runner]::Run()
         }
     }
 
     hidden static [Void] Run() {
         # Auto-choose the launch / environment method
-        [Runner]::AutoChooseSystemStack()
+        [Runner]::AutoChooseSystemStack($false)
 
         # Auto-configure the environment and environment variables
         [Runner]::ConfigureEnvironmentVariables()
@@ -1819,17 +1830,37 @@ class Runner {
     <#
         .DESCRIPTION
             Auto-choose the launch / environment method
+
+        .PARAM ThrowException
+            If this option is enabled, when an error occurs, the exception is thrown again
     #>
-    hidden static [Void] AutoChooseSystemStack() {
+    hidden static [Void] AutoChooseSystemStack([Boolean] $ThrowException) {
+        if ([Runner]::EnvironmentContext.CleanupExitCode -ne 0) {
+            break
+        }
+        
         try {
-            if (([Runner]::EnvironmentContext.Start) -or ([Runner]::EnvironmentContext.Build)) {
+            if (($null -eq [Runner]::EnvironmentContext.SystemStack) -and ([Runner]::EnvironmentContext.Start -or [Runner]::EnvironmentContext.Build)) {
+                Write-Information "Auto-choosing the launch method ..."
                 [Runner]::EnvironmentContext.SetSystemStack([SystemStackDetector]::RetrieveMostAppropriateSystemStack())
                 Write-Information ([Runner]::EnvironmentContext.SystemStack.ToString())
             }
         } catch [System.Management.Automation.CommandNotFoundException] {
             Write-Error $_.Exception.Message -ErrorAction Continue
             [Runner]::Cleanup(127)
+
+            if ($ThrowException) {
+                throw $_
+            }
         }
+    }
+
+    <#
+        .DESCRIPTION
+            Default wrapper for the system stack auto-choose
+    #>
+    hidden static [Void] AutoChooseSystemStack() {
+        [Runner]::AutoChooseSystemStack($false)
     }
 
     <#
@@ -1837,6 +1868,10 @@ class Runner {
             Auto-configure some variables related to the Git / DNS environment
     #>
     hidden static [Void] ConfigureEnvironmentVariables() {
+        if ([Runner]::EnvironmentContext.CleanupExitCode -ne 0) {
+            break
+        }
+
         try {
             [Runner]::EnvironmentContext.SetLocationToScriptPath()
             [Console]::TreatControlCAsInput = $false
@@ -1901,9 +1936,13 @@ class Runner {
             Build demo packages
      #>
     hidden static [Void] Build() {
+        if ([Runner]::EnvironmentContext.CleanupExitCode -ne 0) {
+            break
+        }
+
         try {
             [Runner]::EnvironmentContext.SetLocationToScriptPath()
-            [Runner]::AutoChooseSystemStack()
+            [Runner]::AutoChooseSystemStack($true)
 
             if ([Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker) -and [Runner]::EnvironmentContext.Build) {
                 # Docker build
@@ -1969,11 +2008,15 @@ class Runner {
             Start the demo
      #>
     hidden static [Void] Start() {
+        if ([Runner]::EnvironmentContext.CleanupExitCode -ne 0) {
+            break
+        }
+
         try {
             [Runner]::EnvironmentContext.SetLocationToScriptPath()
             
             if ([Runner]::EnvironmentContext.Start) {
-                [Runner]::AutoChooseSystemStack()
+                [Runner]::AutoChooseSystemStack($true)
                 
                 if ( [Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::Docker)) {
                     # Docker run
@@ -2039,13 +2082,9 @@ class Runner {
                 }
 
                 while ($true) {
-                    # Allow cleanup interrupt: if CTRL-C is triggered twice, the processes will be killed
-                    if ([Console]::KeyAvailable) {
-                        $keyboardKeyCombination = [Console]::ReadKey($true)
-
-                        if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
-                            [Runner]::Cleanup(130)
-                        }
+                    if (Watch-CleanupShortcut) {
+                        [Runner]::Cleanup(130)
+                        break
                     }
 
                     $ShouldStop = $false
@@ -2109,13 +2148,9 @@ class Runner {
     #>
     hidden static [Void] StopRunningProcesses() {
         foreach ($Task in [Runner]::Tasks) {
-            # Allow cleanup interrupt: if CTRL-C is triggered, the cleanup will be restarted
-            if ([Console]::KeyAvailable) {
-                $keyboardKeyCombination = [Console]::ReadKey($true)
-
-                if ($keyboardKeyCombination.Modifiers -eq "Control" -and $keyboardKeyCombination.Key -eq "C") {
-                    [Runner]::Cleanup(130)
-                }
+            if (Watch-CleanupShortcut) {
+                [Runner]::Cleanup(130)
+                break
             }
 
             # Stop the process

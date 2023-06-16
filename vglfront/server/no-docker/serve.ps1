@@ -185,29 +185,53 @@ function Stop-ProcessTree {
             [Parameter(Mandatory = $true)] [Microsoft.Management.Infrastructure.CimInstance] $ChildProcess
         )
 
-        $HasError = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ChildProcess.ProcessId )'" | ForEach-Object {
-            Stop-NestedProcessTree -ChildProcess $_
+        $NestedTerminationSuccess = $false
+        $NestedProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ChildProcess.ProcessId )'"
+
+        if (-not($NestedProcesses.Length)) {
+            $NestedTerminationSuccess = $true
         }
 
-        Write-Information "--> Stopping the process with PID $( $ChildProcess.ProcessId )"
-        $ChildProcess | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
-
-        if ($error -or (-not($?))) {
-            Write-Information "--> Failed to stop the process with PID $( $ChildProcess.ProcessId )"
-            return $true
-        } else {
-            return $false
+        $NestedProcesses | ForEach-Object {
+            $NestedTerminationSuccess = Stop-NestedProcessTree -ChildProcess $_
         }
+
+        try {
+            Write-Information "--> Stopping the process with PID $( $ChildProcess.ProcessId )"
+            $ChildProcess | Invoke-CimMethod -MethodName Terminate -ErrorAction Stop
+        } catch [Microsoft.Management.Infrastructure.CimException] {
+            $TerminationSucceeded = if ($_.Exception.ErrorCode -eq 0x80041002) {
+                $true # Process is already dead
+            } else {
+                $false # Process can't be killed
+            }
+        } catch {
+            $TerminationSucceeded = $false
+        }
+        $TerminationSucceeded = $?
+
+        if (-not($TerminationSucceeded)) {
+            Write-Information "--> Failed to stop the process with PID $( $ChildProcess.ProcessId ) : $($ChildProcess.Name)"
+        }
+
+        return $NestedTerminationSuccess -and $TerminationSucceeded
     }
 
-    $HasError = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'" -ErrorAction SilentlyContinue | ForEach-Object {
-        Stop-NestedProcessTree -ChildProcess $_
+    $NestedTerminationSuccess = $false
+    $NestedProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'"
+
+    if (-not($NestedProcesses.Length)) {
+        $NestedTerminationSuccess = $true
+    }
+
+    $NestedProcesses | ForEach-Object {
+        $NestedTerminationSuccess = Stop-NestedProcessTree -ChildProcess $_
     }
 
     Write-Information "--> Stopping the process with PID $( $ParentProcess.Id )"
     $ParentProcess | Stop-Process -Force -ErrorAction SilentlyContinue
 
-    if ($HasError -or (-not($?))) {
+    if (-not($NestedTerminationSuccess) -or -not($?)) {
         Write-Information "--> Failed to stop the process with PID $( $ParentProcess.Id )"
         throw "--> Failed to stop the process with PID $( $ParentProcess.Id )"
     }
@@ -228,49 +252,50 @@ function Cleanup {
     Param(
         [Switch] $ErrorDetected
     )
-    $ErrorCode = 0
 
-    # Stop the process if CTRL-C is triggered manually and the process has not already exited
-    if ($process -and (-not($process.HasExited))) {
-        Stop-ProcessTree -ParentProcess $process -ErrorAction SilentlyContinue
+    if (-not($global:CleanupCompleted)) {
+        $ErrorCode = 0
 
+        # Stop the process if CTRL-C is triggered manually and the process has not already exited
+        if ($process -and (-not($process.HasExited))) {
+            Stop-ProcessTree -ParentProcess $process -ErrorAction SilentlyContinue
+    
+            if (-not($?)) {
+                Write-Error "Failed to stop the front service" -ErrorAction Continue
+                $ErrorCode = 2
+            }
+        }
+    
+        # Remove the line concerning the temporary runner file
+        Set-Content -Path .env -Value (Get-Content -Path .env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
+    
         if (-not($?)) {
-            Write-Error "Failed to stop the front service" -ErrorAction Continue
-            $ErrorCode = 2
+            Write-Warning "Failed to remove the TMP_RUNNER_FILE key from the .env environment file"
+            $ErrorCode = 3
         }
-    }
-
-    # Remove the line concerning the temporary runner file
-    Set-Content -Path .env -Value (Get-Content -Path .env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
-
-    if (-not($?)) {
-        Write-Warning "Failed to remove the TMP_RUNNER_FILE key from the .env environment file"
-        $ErrorCode = 3
-    }
-
-    # Remove temporary JavaScript environment file to avoid conflicts with Docker
-    if (Test-Path src\assets\environment.js -ErrorAction SilentlyContinue) {
-        Write-Information "Removing temporary JavaScript file src\assets\environment.js"
-        Remove-Item src\assets\environment.js -ErrorAction SilentlyContinue
-    }
-
-    if (-not($?)) {
-        Write-Warning "Failed to remove the src\assets\environment.js temporary JavaScript environment file"
-        $ErrorCode = 4
-    }
-
-    # Remove environment variables
-    foreach ($Key in $environmentVariables) {
-        if (Test-Path env:\"$Key" | Out-Null) {
-            Write-Information "Removing environment variable $key"
-            Remove-Item env:\"$key" -ErrorAction SilentlyContinue
+    
+        # Remove temporary JavaScript environment file to avoid conflicts with Docker
+        if (Test-Path src\assets\environment.js -ErrorAction SilentlyContinue) {
+            Write-Information "Removing temporary JavaScript file src\assets\environment.js"
+            Remove-Item src\assets\environment.js -ErrorAction SilentlyContinue
         }
-    }
+    
+        if (-not($?)) {
+            Write-Warning "Failed to remove the src\assets\environment.js temporary JavaScript environment file"
+            $ErrorCode = 4
+        }
+    
+        # Remove environment variables
+        foreach ($Key in $environmentVariables) {
+            if (Test-Path env:\"$Key" | Out-Null) {
+                Write-Information "Removing environment variable $key"
+                Remove-Item env:\"$key" -ErrorAction SilentlyContinue
+            }
+        }
 
-    if ($ErrorDetected) {
-        exit $ErrorCode
+        $global:CleanupCompleted = $true
+    
     }
-    exit 130
 }
 
 try {

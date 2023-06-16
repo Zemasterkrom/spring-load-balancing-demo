@@ -486,10 +486,10 @@ kill_process() {
     # Kill the process gracefully and wait for it to stop or kill it by force if it cannot be stopped
     echo "Stopping $1 with PID ${2#-}"
 
-    if ! kill -15 "$2" >/dev/null 2>&1; then
+    if ! kill -15 "$2" && ps -p "$2" >/dev/null 2>&1; then
       echo "--> Standard stop failed : force killing $1 with PID ${2#-}" >&2
 
-      if ! kill -9 "$2" >/dev/null 2>&1; then
+      if ! kill -9 "$2" && ps -p "$2" >/dev/null 2>&1; then
         echo "Failed to force kill $1 with PID ${2#-}" >&2
         return 10
       else
@@ -505,7 +505,7 @@ kill_process() {
       if ! wait_for_process_to_stop "$1" "${2#-}" "$3" 2>/dev/null; then
         echo "--> Standard stop failed : force killing $1 with PID ${2#-}" >&2
 
-        if ! kill -9 "$2" >/dev/null 2>&1; then
+        if ! kill -9 "$2" && ps -p "$2" >/dev/null 2>&1; then
           echo "Failed to force kill $1 with PID ${2#-}" >&2
           return 13
         else
@@ -525,7 +525,7 @@ kill_process() {
     # Force kill process
     echo "Force killing $1 with PID ${2#-}"
 
-    if ! kill -9 "$2" >/dev/null 2>&1; then
+    if ! kill -9 "$2" && ps -p "$2" >/dev/null 2>&1; then
       echo "Failed to force kill $1 with PID ${2#-}" >&2
       return 16
     else
@@ -1235,15 +1235,10 @@ cleanup() {
             while ! queue_exit; do true; done
 
             if [ ${cleanup_count} -le 1 ]; then # Default kill
-              kill_process "${SERVICE_NAME}" "${PID}" 20 8 true || exit_code=$?
+              kill_process "${SERVICE_NAME}" "${PID#-}" 20 8 true || exit_code=$?
             else # Force kill
-              kill_process "${SERVICE_NAME}" "${PID}" 20 8 false || exit_code=$?
+              kill_process "${SERVICE_NAME}" "${PID#-}" 20 8 false || exit_code=$?
             fi
-          else
-            while ! queue_exit; do true; done
-
-            exit_code=18
-            echo "${SERVICE_NAME} with PID ${PID#-} has already exited." >&2
           fi
         fi
 

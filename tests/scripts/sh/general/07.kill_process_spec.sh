@@ -42,27 +42,6 @@ Describe 'Kill process'
     End
 
     Context 'Error cases'
-        Context 'Inexistent process'
-            Mock kill
-                return 1
-            End
-
-            It "fails to stop since the process doesn't exists"
-                When call kill_process StopInexistentProcess 1 1 0 true
-                The status should eq 10
-                The line 1 of stdout should eq "Stopping StopInexistentProcess with PID 1"
-                The line 1 of stderr should eq "--> Standard stop failed : force killing StopInexistentProcess with PID 1"
-                The line 2 of stderr should eq "Failed to force kill StopInexistentProcess with PID 1"
-            End
-
-            It "fails to force kill since the process doesn't exists"
-                When call kill_process ForceKillInexistentProcess 1 0 1 false
-                The status should eq 16
-                The line 1 of stdout should eq "Force killing ForceKillInexistentProcess with PID 1"
-                The line 1 of stderr should eq "Failed to force kill ForceKillInexistentProcess with PID 1"
-            End
-        End
-
         Context 'Basic timeout fail'
             kill() {
                 true
@@ -95,6 +74,10 @@ Describe 'Kill process'
                 fi
             }
 
+            ps() {
+                true
+            }
+
             Mock wait_for_process_to_stop
                 true
             End
@@ -119,6 +102,10 @@ Describe 'Kill process'
                 fi
             End
 
+            ps() {
+                true
+            }
+
             It 'partially fails because the standard stop timed out, but the forced kill worked'
                 When call kill_process StopTimeoutForceKillSuccess 1 1 0 true
                 The status should eq 15
@@ -133,6 +120,10 @@ Describe 'Kill process'
                 if [ "$1" = "-9" ]; then
                     return 1
                 fi
+            }
+
+            ps() {
+                true
             }
 
             Mock wait_for_process_to_stop
@@ -153,6 +144,10 @@ Describe 'Kill process'
                 if [ "$1" = "-15" ]; then
                     return 1
                 fi
+            }
+
+            ps() {
+                true
             }
 
             Mock wait_for_process_to_stop

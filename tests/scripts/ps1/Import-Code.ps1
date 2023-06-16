@@ -1,13 +1,25 @@
 Mock Write-Warning {
-    $global:TestWarningOutput += Write-Output ($Message + ";")
+    if ($null -eq $Message) {
+        $global:TestWarningOutput += Write-Output ";"
+    }
+
+    $global:TestWarningOutput += Write-Output ($Message.ToString() + ";")
 }
 
 Mock Write-Error {
-    $global:TestErrorOutput += Write-Output ($Message + ";")
+    if ($null -eq $Message) {
+        $global:TestErrorOutput += Write-Output ";"
+    }
+
+    $global:TestErrorOutput += Write-Output ($Message.ToString() + ";")
 }
 
 Mock Write-Information {
-    $global:TestOutput += Write-Output ($MessageData + ";")
+    if ($null -eq $MessageData) {
+        $global:TestOutput += Write-Output ";"
+    }
+
+    $global:TestOutput += Write-Output ($MessageData.ToString() + ";")
 }
 
 function Reset-TestOutput {

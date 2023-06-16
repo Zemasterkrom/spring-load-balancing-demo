@@ -373,10 +373,10 @@ kill_process() {
     # Kill the process gracefully and wait for it to stop or kill it by force if it cannot be stopped
     echo "Stopping $1 with PID ${2#-}" >&2
 
-    if ! kill -15 "$2" >/dev/null 2>&1; then
+    if ! kill -15 "$2" && ps -p "$2" >/dev/null 2>&1; then
       echo "--> Standard stop failed : force killing $1 with PID ${2#-}" >&2
 
-      if ! kill -9 "$2" >/dev/null 2>&1; then
+      if ! kill -9 "$2" && ps -p "$2" >/dev/null 2>&1; then
         echo "Failed to force kill $1 with PID ${2#-}" >&2
         return 10
       else
@@ -392,7 +392,7 @@ kill_process() {
       if ! wait_for_process_to_stop "$1" "${2#-}" "$3" "$4" 2>/dev/null; then
         echo "--> Standard stop failed : force killing $1 with PID ${2#-}" >&2
 
-        if ! kill -9 "$2" >/dev/null 2>&1; then
+        if ! kill -9 "$2" && ps -p "$2" >/dev/null 2>&1; then
           echo "Failed to force kill $1 with PID ${2#-}" >&2
           return 13
         else
@@ -412,7 +412,7 @@ kill_process() {
     # Force kill process
     echo "Force killing $1 with PID ${2#-}"
 
-    if ! kill -9 "$2" >/dev/null 2>&1; then
+    if ! kill -9 "$2" >/dev/null 2>&1 && ps -p "$2" >/dev/null 2>&1; then
       echo "Failed to force kill $1 with PID ${2#-}" >&2
       return 16
     else

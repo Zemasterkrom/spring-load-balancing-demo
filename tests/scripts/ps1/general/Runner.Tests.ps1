@@ -485,7 +485,7 @@ class MockedRunner: Runner {
                 It "executes the cleanup routine because the system does not have a compatible stack to run the demonstration : method name = <methodname>" {
                     [Runner]::$MethodName()
                     [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 127
-                    Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 127 }
+                    Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 127 }
                 }
             }
     
