@@ -12,6 +12,12 @@ Describe 'System build (no Load Balancing)' {
             throw "Unavailable"
         }
 
+        Mock Invoke-ExitScript {
+            Param(
+                [Parameter(Position = 0, Mandatory = $false)] [Byte] $ExitCode = 0
+            )
+        }
+
         Invoke-Expression @'
 class MockedRunner: Runner {
     static [Void] Main([String[]] $Options) {
@@ -54,14 +60,19 @@ class MockedRunner: Runner {
     }
 
     hidden static [Void] Run() {
-        [Runner]::AutoChooseSystemStack()
-        [Runner]::ConfigureEnvironmentVariables()
-        [Runner]::Build()
+        try {
+            [Runner]::AutoChooseSystemStack()
+            [Runner]::ConfigureEnvironmentVariables()
+            [Runner]::Build()
+        } finally {
+            [Runner]::Cleanup([Runner]::EnvironmentContext.CleanupExitCode)
+        }
     }
 }
 '@
 
         $global:CONSISTENT_BUILD_STATE = $null
+        $global:CORRECT_BUILD_ENVIRONMENT = $false
         Reset-TestOutput
     }
 
@@ -80,6 +91,10 @@ class MockedRunner: Runner {
     Context 'Abstract (mocked) build behavior' -Tag AbstractBuild {
         BeforeEach {
             Mock Invoke-And {
+                if ("$args" -match "mvn.* package|npm install") {
+                    $global:CORRECT_BUILD_ENVIRONMENT = $true
+                }
+
                 if ("$args" -match "loadbalancer") {
                     $global:CONSISTENT_BUILD_STATE = $false
                 } elseif ("$args" -match "config") {
@@ -105,14 +120,16 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $false
-                    }
+                    } -ParameterFilter { $Path -notmatch "env" }
                     
                     [MockedRunner]::Main(@("--no-build", "--no-load-balancing"))
                 }
 
                 It 'should enable the build mode since some packages are not built and start mode is enabled' {
+                    $global:CORRECT_BUILD_ENVIRONMENT | Should -BeTrue
                     $global:CONSISTENT_BUILD_STATE | Should -BeTrue
-                    $TestOutput | Should -Match "Auto-choosing the launch method ...;Java version 17.0;0\r\n|\r|\nMaven \(mvn\) version 3.5.0\r\n|\r|\nNode version 16.0.0;Reading environment variables ...;Environment auto-configuration ...;No Load Balancing packages are not completely built. Build mode enabled.;Building packages ...;"
+                    $TestOutput | Should -Match "Building packages ..."
+                    $TestOutput | Should -Not -Match "Building images and packages ..."
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
                 }
@@ -122,14 +139,14 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    }
+                    } -ParameterFilter { $Path -notmatch "env" }
 
                     [MockedRunner]::Main(@("--no-build", "--no-load-balancing"))
                 }
 
                 It 'should not trigger the build of the packages since the required packages are present' {
+                    $global:CORRECT_BUILD_ENVIRONMENT | Should -BeFalse
                     $global:CONSISTENT_BUILD_STATE | Should -BeNullOrEmpty
-                    $TestOutput | Should -Match "Auto-choosing the launch method ...;Java version 17.0\r\n|\r|\nMaven \(mvn\) version 3.5.0\r\n|\r|\nNode version 16.0.0;Reading environment variables ...;Environment auto-configuration ...;"
                     $TestOutput | Should -Not -Match "Building"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -140,14 +157,16 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    }
+                    } -ParameterFilter { $Path -notmatch "env" }
 
                     [Runner]::Main(@("--no-start", "--no-load-balancing"))
                 }
 
                 It 'should process the build even if there are not any changes in the project' {
+                    $global:CORRECT_BUILD_ENVIRONMENT | Should -BeTrue
                     $global:CONSISTENT_BUILD_STATE | Should -BeTrue
-                    $TestOutput | Should -Match "Auto-choosing the launch method ...;Java version 17.0.0\r\n|\r|\nMaven \(mvn\) version 3.5.0\r\n|\r|\nNode version 16.0.0;Building packages ...;"
+                    $TestOutput | Should -Match "Building packages ..."
+                    $TestOutput | Should -Not -Match "Building images and packages ..."
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
                 }
@@ -181,10 +200,11 @@ class MockedRunner: Runner {
             [Runner]::Main(@("--no-start", "--no-load-balancing"))
         }
 
-        It "builds the packages and images correctly" {
-            $TestOutput | Should -Match "Auto-choosing the launch method ..."
-            $TestOutput | Should -Match "Java version.*\s*Maven \(mvn\) version.*\s*Node version"
-            $TestOutput | Should -Match "Building"
+        It "builds the packages correctly" {
+            $TestOutput | Should -Match "Building packages ..."
+            $TestOutput | Should -Not -Match "Building images and packages ..."
+            [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 0
+            Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 0 }
             $TestWarningOutput | Should -BeNullOrEmpty
             $TestErrorOutput | Should -BeNullOrEmpty
         }

@@ -108,25 +108,13 @@ Describe 'Docker build (Load Balancing)'
             fi
         }
 
-        It 'builds the packages and images correctly (load-balancing)'
+        It 'builds the images correctly'
             When call main --no-start
             The status should be success
             The line 1 of stdout should eq "Building packages and images ..."
             The variable build should eq true
             The variable start should eq false
             The variable mode should eq "${LOAD_BALANCING_MODE}"
-            The variable environment should eq "${DOCKER_ENVIRONMENT}"
-            The stderr should satisfy true
-            Assert current_location_is_at_the_base_of_the_project
-        End
-
-        It 'builds the packages and images correctly (no load-balancing)'
-            When call main --no-start --no-load-balancing
-            The status should be success
-            The line 1 of stdout should eq "Building packages and images ..."
-            The variable build should eq true
-            The variable start should eq false
-            The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
             The variable environment should eq "${DOCKER_ENVIRONMENT}"
             The stderr should satisfy true
             Assert current_location_is_at_the_base_of_the_project

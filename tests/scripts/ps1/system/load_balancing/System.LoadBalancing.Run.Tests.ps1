@@ -77,7 +77,11 @@ class MockedRunner: Runner {
     }
 
     hidden static [Void] Run() {
-        [Runner]::Start()
+        try {
+            [Runner]::Start()
+        } finally {
+            [Runner]::Cleanup([Runner]::EnvironmentContext.CleanupExitCode)
+        }
     }
 }
 '@
@@ -105,7 +109,7 @@ class MockedRunner: Runner {
 
                 Mock Test-Path {
                     return $true
-                }
+                } -ParameterFilter { $Path -notmatch "env" }
 
                 Mock Remove-Item {}
                 Mock Stop-Process {}
@@ -116,6 +120,7 @@ class MockedRunner: Runner {
 
             It 'checks that the run stage is triggered' {
                 $TestOutput | Should -Match "Launching services ...;Starting the VglConfig process;Starting the VglServiceOne process;Starting the VglServiceTwo process;Starting the VglLoadBalancer process;Starting the VglDiscovery process;"
+                $TestOutput | Should -Not -Match "Launching Docker services ..."
                 [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 3
                 Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 3 }
                 $TestWarningOutput | Should -BeNullOrEmpty
@@ -172,8 +177,10 @@ class MockedRunner: Runner {
         }
 
         It 'starts the demonstration without Docker and stops it successfully' {
+            $TestOutput | Should -Match "Launching services ..."
+            $TestOutput | Should -Not -Match "Launching Docker services ..."
             [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 130
-            Should -Invoke Invoke-ExitScript -Times 1 -ParameterFilter { $ExitCode -eq 130 }
+            Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 130 }
             Assert-ProcessesAreStopped | Should -BeTrue
             Assert-AtBaseLocation | Should -BeTrue
             $TestWarningOutput | Should -BeNullOrEmpty

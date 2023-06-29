@@ -226,7 +226,7 @@ ${REQUIREMENTS_TEXT}"
             fi
         }
 
-        It 'builds the packages and images correctly'
+        It 'builds the packages correctly'
             When call main --no-start
             The status should be success
             The line 1 of stdout should eq "Building packages ..."

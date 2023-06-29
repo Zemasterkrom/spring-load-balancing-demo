@@ -112,7 +112,7 @@ Describe 'Docker build (no Load Balancing)'
             fi
         }
 
-        It 'builds the packages and images correctly'
+        It 'builds the images correctly'
             When call main --no-start --no-load-balancing
             The status should be success
             The line 1 of stdout should eq "Building packages and images ..."
