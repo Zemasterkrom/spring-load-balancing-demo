@@ -42,7 +42,7 @@ Describe 'Detect Docker Compose CLI'
         Context 'CLI : docker-compose'
             Mock docker
                 if [ "$1" = "compose" ]; then
-                    return 1
+                    false
                 fi
             End
 
@@ -107,7 +107,7 @@ Describe 'Detect Docker Compose CLI'
             Context 'CLI : docker-compose'
                 Mock docker
                     if [ "$1" = "compose" ]; then
-                        return 1
+                        false
                     fi
                 End
 
@@ -129,7 +129,7 @@ Describe 'Detect Docker Compose CLI'
 
         Context 'Docker daemon system error'
             Mock docker
-                return 1
+                false
             End
 
             It "fails since the Docker daemon isn't available"
@@ -146,12 +146,12 @@ Describe 'Detect Docker Compose CLI'
         Context 'Docker Compose system error'
             Mock docker
                 if [ "$1" = "compose" ]; then
-                    return 1
+                    false
                 fi
             End
 
             Mock docker-compose
-                return 1
+                false
             End
 
             It "fails since the Docker daemon isn't available"
@@ -286,7 +286,7 @@ Describe 'Detect Java CLI'
 
         Context 'Java system error'
             Mock java
-                return 1
+                false
             End
 
             It "fails since a Java system error occurs"
@@ -398,7 +398,7 @@ Describe 'Detect Node CLI'
 
         Context 'Node system error'
             Mock node
-                return 1
+                false
             End
 
             It "fails since a Node system error occurs"
@@ -503,7 +503,7 @@ Describe 'Detect Maven CLI'
 
         Context 'Maven system error'
             Mock mvn
-                return 1
+                false
             End
 
             It "fails since a Maven system error occurs"
@@ -539,7 +539,7 @@ Describe 'Auto-choose system stack'
 
         Context 'Auto-choose with Java, Maven and Node'
             detect_compatible_available_docker_compose_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_java_cli() {
@@ -579,19 +579,19 @@ Describe 'Auto-choose system stack'
     Context 'Error cases'
         Context 'Not any system requirements matched'
             detect_compatible_available_docker_compose_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_java_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_maven_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_node_cli() {
-                return 1
+                false
             }
 
             It 'fails because no required system components are present'
@@ -605,11 +605,11 @@ Describe 'Auto-choose system stack'
 
         Context "Java version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_java_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_maven_cli() {
@@ -631,7 +631,7 @@ Describe 'Auto-choose system stack'
 
         Context "Node version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_java_cli() {
@@ -643,7 +643,7 @@ Describe 'Auto-choose system stack'
             }
 
             detect_compatible_available_node_cli() {
-                return 1
+                false
             }
 
             It "fails because Node version isn't compatible"
@@ -657,7 +657,7 @@ Describe 'Auto-choose system stack'
 
         Context "Maven version not matched when Docker can't be used"
             detect_compatible_available_docker_compose_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_java_cli() {
@@ -665,7 +665,7 @@ Describe 'Auto-choose system stack'
             }
             
             detect_compatible_available_maven_cli() {
-                return 1
+                false
             }
 
             detect_compatible_available_node_cli() {

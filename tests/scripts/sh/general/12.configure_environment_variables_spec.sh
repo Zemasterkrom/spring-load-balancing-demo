@@ -179,11 +179,11 @@ Describe 'Configure environment variables'
         End
 
         git() {
-            return 1
+            false
         }
 
         hostname() {
-            return 1
+            false
         }
 
         setup_environment() {

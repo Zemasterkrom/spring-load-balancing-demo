@@ -3,7 +3,7 @@ version: '2'
 services:
   vgldatabase:
     image: postgres:15.1-alpine
-    restart: on-failure
+    restart: unless-stopped
     container_name: vgldatabase
     environment:
       POSTGRES_USER: ${DB_USERNAME}
@@ -17,7 +17,7 @@ services:
   vglconfig:
     build: ./vglconfig
     image: vglconfig
-    restart: on-failure
+    restart: unless-stopped
     container_name: vglconfig
     environment:
       - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
@@ -30,7 +30,7 @@ services:
   vglservice:
     build: ./vglservice
     image: vglservice
-    restart: on-failure
+    restart: unless-stopped
     container_name: vglservice
     environment:
       - DB_URL=${DB_URL}
@@ -53,7 +53,7 @@ services:
   vglservice-two:
     build: ./vglservice
     image: vglservice
-    restart: on-failure
+    restart: unless-stopped
     container_name: vglservice-two
     environment:
       - DB_URL=${DB_URL}
@@ -76,7 +76,7 @@ services:
   vglfront:
     build: ./vglfront
     image: vglfront
-    restart: on-failure
+    restart: unless-stopped
     container_name: vglfront
     environment:
       - API_URL=${API_URL}
@@ -90,7 +90,7 @@ services:
   vglloadbalancer:
     build: ./vglloadbalancer
     image: vglloadbalancer
-    restart: on-failure
+    restart: unless-stopped
     container_name: vglloadbalancer
     environment:
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
@@ -108,7 +108,7 @@ services:
   vgldiscovery:
     build: ./vgldiscovery
     image: vgldiscovery
-    restart: on-failure
+    restart: unless-stopped
     container_name: vgldiscovery
     environment:
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}

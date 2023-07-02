@@ -48,7 +48,7 @@ Describe 'Kill process'
             }
 
             Mock wait_for_process_to_stop
-                return 1
+                false
             End
 
             It 'fails since a timeout occurs while waiting for the process to stop (stop request)'
@@ -98,7 +98,7 @@ Describe 'Kill process'
 
             Mock wait_for_process_to_stop
                 if [ "$3" = "1" ]; then
-                    return 1
+                    false
                 fi
             End
 
@@ -118,7 +118,7 @@ Describe 'Kill process'
         Context 'Standard stop timeout, force kill fail'
             kill() {
                 if [ "$1" = "-9" ]; then
-                    return 1
+                    false
                 fi
             }
 
@@ -127,7 +127,7 @@ Describe 'Kill process'
             }
 
             Mock wait_for_process_to_stop
-                return 1
+                false
             End
 
             It 'fails because the standard stop errored out, and the forced kill too'
@@ -151,7 +151,7 @@ Describe 'Kill process'
             }
 
             Mock wait_for_process_to_stop
-                return 1
+                false
             End
 
             It 'fails because the standard stop errored out, and the forced kill too'

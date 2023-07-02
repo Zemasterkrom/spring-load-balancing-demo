@@ -120,7 +120,7 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $false
-                    }
+                    }  -ParameterFilter { $Path -notmatch "run\.ps1" }
                     
                     [MockedRunner]::Main(@("--no-build"))
                 }
@@ -139,7 +139,7 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    } -ParameterFilter { $Path -notmatch "env" }
+                    } -ParameterFilter { $Path -notmatch "env|run\.ps1" }
 
                     [MockedRunner]::Main(@("--no-build"))
                 }
@@ -157,7 +157,7 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    } -ParameterFilter { $Path -notmatch "env" }
+                    } -ParameterFilter { $Path -notmatch "env|run\.ps1" }
 
                     [Runner]::Main(@("--no-start"))
                 }

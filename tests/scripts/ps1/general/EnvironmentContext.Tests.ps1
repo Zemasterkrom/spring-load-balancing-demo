@@ -7,14 +7,6 @@ BeforeAll {
 }
 
 Describe 'EnvironmentContext' {
-    BeforeEach {
-        $SCRIPT_PATH = $env:SCRIPT_PATH
-    }
-
-    AfterEach {
-        $env:SCRIPT_PATH = $SCRIPT_PATH
-    }
-
     Context 'Set environment variable keys' -Tag SetEnvironmentVariableKeys {
         Context 'Valid keys' -ForEach @(
             @{ Keys = @("TestOne", "TestTwo")}
@@ -141,37 +133,160 @@ Describe 'EnvironmentContext' {
     }
 
     Context 'Set script location' -Tag SetScriptLocation {
-        Context 'Set without location hint' {
-            BeforeEach {
-                Mock Set-Location {}
-                Mock Get-ScriptRoot {
-                    return "ScriptRoot"
-                }
-
-                $env:SCRIPT_PATH = ""
-                $EnvironmentContext = [EnvironmentContext]::new()
-            }
-
-            It "sets and changes the root location of the script using the PSScriptRoot variable" {
-                $EnvironmentContext.SetLocationToScriptPath() 
-                $EnvironmentContext.ScriptPath | Should -BeExactly "ScriptRoot"
+        BeforeEach {
+            Mock Get-ScriptRoot {
+                return "ScriptRoot"
             }
         }
 
-        Context 'Set with location hint' {
+        Context 'Success cases' {
             BeforeEach {
-                Mock Set-Location {}
-                Mock Get-ScriptRoot {
-                    return "ScriptRoot"
+                Mock Resolve-Path {
+                    return @{
+                        Path = Get-ScriptRoot
+                    }
                 }
 
-                $EnvironmentContext = [EnvironmentContext]::new()
+                Mock Test-Path {
+                    return $true
+                }
+
+                Mock Set-Location {}
             }
 
-            It "sets and changes the root location of the script using the custom SCRIPT_PATH variable" {
-                $EnvironmentContext.SetLocationToScriptPath() 
-                $EnvironmentContext.ScriptPath | Should -BeExactly $env:SCRIPT_PATH
-                $env:SCRIPT_PATH | Should -Not -BeNullOrEmpty
+            Context 'Set without location hint' {
+                BeforeEach {
+                    $SCRIPT_PATH = $env:SCRIPT_PATH
+                    $env:SCRIPT_PATH = ""
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                }
+
+                AfterEach {
+                    $env:SCRIPT_PATH = $SCRIPT_PATH
+                }
+    
+                It "sets and changes the root location of the script using the PSScriptRoot variable" {
+                    $EnvironmentContext.SetLocationToScriptPath() 
+                    $EnvironmentContext.ScriptPath | Should -BeExactly "ScriptRoot"
+                }
+            }
+    
+            Context 'Set with location hint' {
+                BeforeEach {
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                }
+    
+                It "sets and changes the root location of the script using the custom SCRIPT_PATH variable" {
+                    $EnvironmentContext.SetLocationToScriptPath() 
+                    $EnvironmentContext.ScriptPath | Should -BeExactly $env:SCRIPT_PATH
+                    $env:SCRIPT_PATH | Should -Not -BeNullOrEmpty
+                }
+            }
+        }
+
+        Context 'Error cases' {  
+            Context 'Set with a non-existent location path hint' {
+                BeforeEach {
+                    Mock Set-Location {}
+
+                    Mock Test-Path {
+                        return $true
+                    } -ParameterFilter { $Path -notmatch "InexistentLocation$" }
+
+                    $SCRIPT_PATH = $env:SCRIPT_PATH
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                }
+                
+                AfterEach {
+                    $env:SCRIPT_PATH = $SCRIPT_PATH
+                }
+    
+                It "tries to change the current location using the custom SCRIPT_PATH variable representing a non-existent location" {
+                    $env:SCRIPT_PATH = "InexistentLocation"
+                    { $EnvironmentContext.SetLocationToScriptPath() } | Should -Throw -ExceptionType System.IO.DirectoryNotFoundException -ExpectedMessage "$env:SCRIPT_PATH is not a directory. Unable to continue."
+                    $EnvironmentContext.ScriptPath | Should -BeExactly "ScriptRoot"
+                    $env:SCRIPT_PATH | Should -Not -BeNullOrEmpty
+                }
+            }
+
+            Context 'Location change error' {
+                BeforeEach {
+                    Mock Resolve-Path {
+                        if ($env:SCRIPT_PATH -ne "OtherPath") {
+                            return @{
+                                Path = Get-ScriptRoot
+                            }
+                        } else {
+                            return @{
+                                Path = "OtherPath"
+                            }
+                        }
+                    }
+
+                    Mock Set-Location {
+                        if ($Path -eq "OtherPath") {
+                            throw "Fatal error"
+                        }
+                    }
+
+                    Mock Test-Path {
+                        return $true
+                    }
+                    
+                    $SCRIPT_PATH = $env:SCRIPT_PATH
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                }
+                
+                AfterEach {
+                    $env:SCRIPT_PATH = $SCRIPT_PATH
+                }
+    
+                It "tries to change the current location but fails because of a system error" {
+                    $env:SCRIPT_PATH = "OtherPath"
+                    { $EnvironmentContext.SetLocationToScriptPath() } | Should -Throw -ExceptionType System.IO.IOException -ExpectedMessage "Unable to switch to the $env:SCRIPT_PATH base directory of the script. Unable to continue."
+                    $EnvironmentContext.ScriptPath | Should -BeExactly $env:SCRIPT_PATH
+                    $env:SCRIPT_PATH | Should -Not -BeNullOrEmpty
+                }
+            }
+
+            Context 'Successful resolution of location path, but script file not found' {
+                BeforeEach {
+                    Mock Resolve-Path {
+                        if ($env:SCRIPT_PATH -ne "OtherPath") {
+                            return @{
+                                Path = Get-ScriptRoot
+                            }
+                        } else {
+                            return @{
+                                Path = "OtherPath"
+                            }
+                        }
+                    }
+                    
+                    Mock Set-Location {}
+
+                    Mock Test-Path {
+                        if ($env:SCRIPT_PATH -eq "OtherPath") {
+                            return $PathType -eq "Container"
+                        } else {
+                            return $true
+                        }
+                    }
+                    
+                    $SCRIPT_PATH = $env:SCRIPT_PATH
+                    $EnvironmentContext = [EnvironmentContext]::new()
+                }
+
+                AfterEach {
+                    $env:SCRIPT_PATH = $SCRIPT_PATH
+                }
+    
+                It "changes the current location using the custom location variable SCRIPT_PATH, but fails because the script file cannot be found" {
+                    $env:SCRIPT_PATH = "OtherPath"
+                    { $EnvironmentContext.SetLocationToScriptPath() } | Should -Throw -ExceptionType System.IO.FileNotFoundException -ExpectedMessage "Unable to find the base script in the changed $env:SCRIPT_PATH directory. Unable to continue."
+                    $EnvironmentContext.ScriptPath | Should -BeExactly $env:SCRIPT_PATH
+                    $env:SCRIPT_PATH | Should -Not -BeNullOrEmpty
+                }
             }
         }
     }

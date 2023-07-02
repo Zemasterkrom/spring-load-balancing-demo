@@ -55,7 +55,7 @@ Describe 'Wait for process to stop'
 
             Context 'Failed wait'
                 check_process_existence() {
-                    return
+                    true
                 }
 
                 It 'fails since the process has not started within the timeout interval'

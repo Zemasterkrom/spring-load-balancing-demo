@@ -49,7 +49,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 2 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -80,7 +80,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 2 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -111,7 +111,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 1 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -141,7 +141,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 1 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -171,7 +171,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 2 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -203,7 +203,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 2 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -235,7 +235,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 2 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -267,7 +267,7 @@ Describe 'Cleanup logic check'
             if [ "${check_process_existence_exec_count}" -le 3 ]; then
                 echo "Checked process existence : $*"
             else
-                return 1
+                false
             fi
         }
 
@@ -287,7 +287,7 @@ Describe 'Cleanup logic check'
 
                 echo "Waiting for cleanup"
             else
-                return 1
+                false
             fi
         }
 

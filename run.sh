@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
 
+test_shell_path_detection_ability() {
+  [ "${1%run.sh}" != "$1" ]
+}
+
 # Change to the script directory if not in the same directory as the script
 cd_to_script_dir() {
   if [ -z "${changed_to_base_dir}" ]; then
@@ -9,25 +13,35 @@ cd_to_script_dir() {
   if ! ${changed_to_base_dir}; then
     if [ -n "${context_dir}" ]; then
       cd_dir="${context_dir}"
-    elif [ "${0%run.sh}" != "$0" ]; then
+    elif test_shell_path_detection_ability "$0"; then
       cd_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
     fi
 
-    if [ -n "${cd_dir}" ] && ! cd "${cd_dir}" >/dev/null 2>&1; then
-      echo "Unable to switch to the base directory of the script. Unable to continue." >&2
-      return 126
+    if [ -n "${cd_dir}" ]; then
+      if ! test -d "${cd_dir}"; then
+        echo "${cd_dir} is not a directory. Unable to continue." >&2
+        return 126
+      fi
+
+      if ! cd "${cd_dir}" >/dev/null 2>&1; then
+        echo "Unable to switch to the ${cd_dir} base directory of the script. Unable to continue." >&2
+        return 126
+      fi
     fi
 
-    if ! ls run.sh >/dev/null 2>&1; then
-      echo "Unable to find the base script in the changed directory. Unable to continue." >&2
+    if ! test -f run.sh; then
+      echo "Unable to find the base script in the changed ${cd_dir} directory. Unable to continue." >&2
       return 127
     fi
 
     script_directory="$(pwd)"
   fi
 
-  if [ "$(pwd)" != "${script_directory}" ]; then
-    cd "${script_directory}"
+  if [ -n "${script_directory}" ] && [ "$(pwd)" != "${script_directory}" ]; then
+    if ! cd "${script_directory}" >/dev/null 2>&1; then
+      echo "Unable to switch to the ${script_directory} base directory of the script. Unable to continue." >&2
+      return 126
+    fi
   fi
 
   if [ -z "${changed_to_base_dir}" ] || [ "${changed_to_base_dir}" = "false" ]; then
@@ -911,30 +925,8 @@ build() {
 # shellcheck disable=SC2016
 # shellcheck disable=SC2154
 start_docker_compose_services() {
-  (
-    if ! ${process_control_enabled}; then
-      trap 'kill -15 "$(ps | awk -v DOCKER_COMPOSE_CLI_PID=${docker_compose_cli_pid} '\''NR == 1 { for (i = 1; i <= NF; i++) { if ($i == "PID") { pid_index=i }; if ($i == "PPID") { ppid_index=i } }; if (pid_index == "" || ppid_index == "") { exit 1 } } { if ($ppid_index == DOCKER_COMPOSE_CLI_PID) { print $pid_index; exit } }'\'')" 2>/dev/null || kill -15 $$ 2>/dev/null' INT TERM
-    fi
-
-    ${docker_compose_cli} "$@" &
-    docker_compose_cli_pid=$!
-    wait_count=0
-
-    while ! ps -p ${docker_compose_cli_pid} >/dev/null; do
-      sleep 1
-      wait_count=$((wait_count + 1))
-      
-      if [ ${wait_count} -ge 5 ]; then
-        break;
-      fi;
-    done;
-    
-    if [ -n "${DockerComposeOrchestrator_tmp_runner_file}" ]; then
-      touch "${TMPDIR:-/tmp}/${DockerComposeOrchestrator_tmp_runner_file}"
-    fi
-
-    wait ${docker_compose_cli_pid}
-  ) &
+  ${docker_compose_cli} "$@" -d || start_error=$?
+  ${docker_compose_cli} "$@" &
 }
 
 # Starts a Java process
@@ -972,10 +964,6 @@ start() {
       echo "Launching Docker services ..."
 
       # Start the services
-      if ! ${process_control_enabled}; then
-        DockerComposeOrchestrator_tmp_runner_file="dockercomposeorchestrator_$$_$(random_number 9999)"
-      fi
-
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
         start_docker_compose_services up
       else
@@ -990,9 +978,9 @@ start() {
       while ! block_exit; do true; done
 
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-enabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-enabled kill" "" true "${DockerComposeOrchestrator_tmp_runner_file}"
+        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-enabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-enabled kill" "" false
       else
-        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-disabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-disabled kill" "" true "${DockerComposeOrchestrator_tmp_runner_file}"
+        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-disabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-disabled kill" "" false
       fi
       
       while ! queue_exit; do true; done

@@ -442,10 +442,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
                     cleanup_count=$((cleanup_count + 1))
                     queued_signal_code=143
                     enabled_sigterm_code=true
-
-                    return
                 else
-                    return 1
+                    false
                 fi
             }
 
@@ -475,10 +473,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
                     cleanup_count=$((cleanup_count + 1))
                     queued_signal_code=143
                     enabled_sigterm_code=true
-
-                    return
                 else
-                    return 1
+                    false
                 fi
             }
 
@@ -508,10 +504,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
                     cleanup_count=$((cleanup_count + 1))
                     queued_signal_code=130
                     enabled_sigint_code=true
-
-                    return
                 else
-                    return 1
+                    false
                 fi
             }
 
@@ -541,10 +535,8 @@ cleanup_executed=${cleanup_executed}" > "${TMP_DATA_FILE_LOCATION}_subshell_data
                     cleanup_count=$((cleanup_count + 1))
                     queued_signal_code=130
                     enabled_sigint_code=true
-
-                    return
                 else
-                    return 1
+                    false
                 fi
             }
 

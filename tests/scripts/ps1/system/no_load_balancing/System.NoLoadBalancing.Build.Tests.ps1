@@ -25,7 +25,7 @@ class MockedRunner: Runner {
             [SystemStackDetector]::ChoosenSystemStack = $null
             [Runner]::EnvironmentContext = [EnvironmentContext]::new()
             [Runner]::Tasks = @()
-    
+
             foreach ($Option in $Options) {
                 switch ($Option) {
                     --no-start {
@@ -116,11 +116,11 @@ class MockedRunner: Runner {
         }
 
         Context 'Packages check behavior check' {
-            Context 'Missing packages auto-detection' {
+            Context 'Missing packages auto-detection' -Tag Test {
                 BeforeEach {
                     Mock Test-Path {
                         return $false
-                    } -ParameterFilter { $Path -notmatch "env" }
+                    } -ParameterFilter { $Path -notmatch "env|run\.ps1" }
                     
                     [MockedRunner]::Main(@("--no-build", "--no-load-balancing"))
                 }
@@ -139,7 +139,7 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    } -ParameterFilter { $Path -notmatch "env" }
+                    } -ParameterFilter { $Path -notmatch "env|run\.ps1" }
 
                     [MockedRunner]::Main(@("--no-build", "--no-load-balancing"))
                 }
@@ -157,7 +157,7 @@ class MockedRunner: Runner {
                 BeforeEach {
                     Mock Test-Path {
                         return $true
-                    } -ParameterFilter { $Path -notmatch "env" }
+                    } -ParameterFilter { $Path -notmatch "env|run\.ps1" }
 
                     [Runner]::Main(@("--no-start", "--no-load-balancing"))
                 }

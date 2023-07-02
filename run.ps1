@@ -629,13 +629,25 @@ class EnvironmentContext {
     }
 
     SetLocationToScriptPath() {
-        if ((Test-Path env:SCRIPT_PATH) -and ($env:SCRIPT_PATH -ne $this.ScriptPath)) {
-            $this.ScriptPath = (Resolve-Path $env:SCRIPT_PATH).Path
-            $env:SCRIPT_PATH = $this.ScriptPath
+        if ($env:SCRIPT_PATH -and ($env:SCRIPT_PATH -ne $this.ScriptPath)) {
+            if (Test-Path -PathType Container $env:SCRIPT_PATH) {
+                $this.ScriptPath = (Resolve-Path $env:SCRIPT_PATH).Path
+                $env:SCRIPT_PATH = $this.ScriptPath
+            } else {
+                throw [System.IO.DirectoryNotFoundException]::new("$env:SCRIPT_PATH is not a directory. Unable to continue.")
+            }
+        }
+        
+        try {
+            if ("$PWD" -ne $this.ScriptPath) {
+                Set-Location $this.ScriptPath
+            }
+        } catch {
+            throw [System.IO.IOException]::new("Unable to switch to the $( $this.ScriptPath ) base directory of the script. Unable to continue.")
         }
 
-        if ("$PWD" -ne $this.ScriptPath) {
-            Set-Location $this.ScriptPath
+        if (-not(Test-Path -PathType Leaf run.ps1)) {
+            throw [System.IO.FileNotFoundException]::new("Unable to find the base script in the changed $( $this.ScriptPath ) directory. Unable to continue.")
         }
     }
 
