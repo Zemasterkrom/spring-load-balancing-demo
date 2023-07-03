@@ -100,28 +100,24 @@ Describe 'Docker run (Load Balancing)'
             End
             
             Context 'Successfully launched Docker services'
-                is_waiting_for_cleanup() {
-                    if [ -z "${is_waiting_for_cleanup_executed}" ]; then
-                        queued_signal_code=130
-                        is_waiting_for_cleanup_executed=true
-                    else
-                        return 1
-                    fi
-                }
-
                 start_docker_compose_services() {
-                    while true; do sleep 1; done &
-
                     if echo "$@" | grep -q no-load-balancing; then
                         start_error=1
                     fi
+
+                    if [ "${start_error}" -ne 0 ]; then
+                        cleanup "${start_error}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+                        return "${exit_code}"
+                    fi
+
+                    cleanup 130 "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+                    return "${exit_code}"
                 }
                     
                 It 'checks that the run stage is triggered'
                     When call main --no-build
                     The status should eq 130
-                    The line 1 of stdout should eq "Launching Docker services ..."
-                    The line 2 of stdout should eq "Waiting for DockerComposeOrchestrator with PID ${DockerComposeOrchestrator_pid} to start ... Please wait ..."
+                    The stdout should eq "Launching Docker services ..."
                     The stderr should satisfy no_force_kill_acted
                     The stderr should satisfy has_started
                     The variable build should eq false
@@ -129,37 +125,78 @@ Describe 'Docker run (Load Balancing)'
                     The variable mode should eq "${LOAD_BALANCING_MODE}"
                     The variable environment should eq "${DOCKER_ENVIRONMENT}"
                     The variable exit_code should eq 130
-                    The variable queued_signal_code should eq 130
                     Assert no_background_process_is_alive
                     Assert current_location_is_at_the_base_of_the_project
                 End
             End
 
-            Context 'Exited Docker services'
-                start_docker_compose_services() {
-                    true &
-
-                    if echo "$@" | grep -q no-load-balancing; then
-                        start_error=1
+            Context 'Docker services start error'
+                check_docker_services_stop_operation_status() {
+                    if echo "$@" | grep -q "stop"; then
+                        started_stopping_docker_services=true
                     fi
+
+                    if echo "$@" | grep -q "kill"; then
+                        started_killing_docker_services=true
+                    fi
+
                 }
 
-                gt_than_zero() {
-                    [ "${gt_than_zero}" -gt 0 ]
+                docker() {
+                    check_docker_services_stop_operation_status "$@"
+                    false
                 }
                     
-                It 'checks that the execution step is triggered and that a cleanup is performed because the background process ends as soon as it is started'
+                It 'stops services because a Docker error occurred when starting Docker services'
                     When call main --no-build
-                    The status should eq "${exit_code}"
-                    The variable exit_code should satisfy gt_than_zero
-                    The variable queued_signal_code should eq -1
-                    The line 1 of stdout should eq "Launching Docker services ..."
-                    The line 2 of stdout should eq "Waiting for DockerComposeOrchestrator with PID ${DockerComposeOrchestrator_pid} to start ... Please wait ..."
+                    The status should eq 1
+                    The stdout should eq "Launching Docker services ..."
                     The stderr should satisfy no_force_kill_acted
+                    The stderr should satisfy has_started
                     The variable build should eq false
                     The variable start should eq true
                     The variable mode should eq "${LOAD_BALANCING_MODE}"
                     The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                    The variable exit_code should eq 1
+                    The variable started_stopping_docker_services should eq true
+                    The variable started_killing_docker_services should eq true
+                    Assert no_background_process_is_alive
+                    Assert current_location_is_at_the_base_of_the_project
+                End
+            End
+
+            Context 'Docker services stop error'
+                check_docker_services_stop_operation_status() {
+                    if echo "$@" | grep -q "stop"; then
+                        started_stopping_docker_services=true
+                    fi
+
+                    if echo "$@" | grep -q "kill"; then
+                        started_killing_docker_services=true
+                    fi
+                }
+
+                docker() {
+                    check_docker_services_stop_operation_status "$@"
+
+                    if echo "$@" | grep -q "stop\|kill"; then
+                        false
+                    fi
+                }
+                    
+                It 'kills services because a Docker error occurred when stopping Docker services'
+                    When call main --no-build
+                    The status should eq 1
+                    The stdout should eq "Launching Docker services ..."
+                    The stderr should satisfy no_force_kill_acted
+                    The stderr should satisfy has_started
+                    The variable build should eq false
+                    The variable start should eq true
+                    The variable mode should eq "${LOAD_BALANCING_MODE}"
+                    The variable environment should eq "${DOCKER_ENVIRONMENT}"
+                    The variable exit_code should eq 1
+                    The variable started_stopping_docker_services should eq true
+                    The variable started_killing_docker_services should eq true
                     Assert no_background_process_is_alive
                     Assert current_location_is_at_the_base_of_the_project
                 End
@@ -169,22 +206,23 @@ Describe 'Docker run (Load Balancing)'
 
     Context 'Concrete run behavior check'
         start_docker_compose_services() {
-            ${docker_compose_cli} "$@" -d >/dev/null || start_error=$?
-            ${docker_compose_cli} "$@" &
-        }
-
-        is_waiting_for_cleanup() {
-            if [ -z "${is_waiting_for_cleanup_executed}" ]; then
-                is_waiting_for_cleanup_executed=false
+            if [ -n "${project_name}" ]; then
+                project_argument="-p ${project_name}"
             fi
 
-            if ! ${is_waiting_for_cleanup_executed}; then 
-                is_waiting_for_cleanup_executed=true
-                queued_signal_code=130
-                return
-            else
-                return 1
-            fi
+            ${docker_compose_cli} "$@" -d || {
+                start_error=$?
+                ${docker_compose_cli} ${project_argument} stop -t 20 || ${docker_compose_cli} ${project_argument} kill
+                cleanup ${start_error} "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+
+                return "${exit_code}"
+            }
+
+            ${docker_compose_cli} ${project_argument} stop -t 20 || ${docker_compose_cli} ${project_argument} kill || {
+                cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+                return "${exit_code}"
+            }
+            cleanup 130 "${AUTOMATED_CLEANUP}" "${cleanup_count}"
         }
 
         load_balancing_containers_are_stopped() {
@@ -207,7 +245,6 @@ EOF
             When call main --no-build
             The status should eq 130
             The line 1 of stdout should eq "Launching Docker services ..."
-            The line 2 of stdout should eq "Waiting for DockerComposeOrchestrator with PID ${DockerComposeOrchestrator_pid} to start ... Please wait ..."
             The stderr should satisfy no_force_kill_acted
             The stderr should satisfy has_started
             The variable build should eq false
@@ -216,7 +253,6 @@ EOF
             The variable environment should eq "${DOCKER_ENVIRONMENT}"
             The variable docker_compose_cli should be present
             The variable exit_code should eq 130
-            The variable queued_signal_code should eq 130
             Assert no_background_process_is_alive
             Assert current_location_is_at_the_base_of_the_project
             Assert load_balancing_containers_are_stopped

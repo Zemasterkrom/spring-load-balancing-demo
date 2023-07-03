@@ -584,7 +584,7 @@ wait_until_tmp_runner_file_exists() {
   # Run the checks
   echo "Waiting for $1 to create the ${TMPDIR:-/tmp}/$2 file ($4 seconds) ..."
   safe_wait_until_tmp_runner_file_exists "$1" "$2" "$3" "$4" "$(eval "echo \${$1_checked_tmp_runner_file}")" "$(date +%s 2>/dev/null)" "$(date +%s 2>/dev/null)"
-  
+
   if [ -f "${TMPDIR:-/tmp}/$2" ]; then
     rm "${TMPDIR:-/tmp}/$2" || return $?
   fi
@@ -694,7 +694,7 @@ detect_compatible_available_docker_compose_cli() {
       return 127
     fi
   fi
-  
+
   if [ -n "${docker_compose_cli}" ] && docker_compose_version="$(echo "${docker_compose_version}" | sed -n 's/^[^0-9]*\([0-9]\+\)\.\([0-9]\+\)\.\{0,1\}\([0-9]\+\)\{0,1\}.*$/\1.\2.\3/p' | awk -F"." "${AWK_REQUIRED_DOCKER_COMPOSE_VERSION}")" && [ -n "${docker_compose_version}" ]; then
     echo "${docker_compose_cli}:${docker_compose_version}"
   else
@@ -815,17 +815,17 @@ check_file_existence() {
 # Checks if load-balancing related packages are build on the system
 check_load_balancing_packages() {
   check_file_existence -f vglconfig/target/vglconfig.jar &&
-  check_file_existence -f vglservice/target/vglservice.jar && 
-  check_file_existence -d vglfront/node_modules &&
-  check_file_existence -f vgldiscovery/target/vgldiscovery.jar && 
-  check_file_existence -f vglloadbalancer/target/vglloadbalancer.jar
+    check_file_existence -f vglservice/target/vglservice.jar &&
+    check_file_existence -d vglfront/node_modules &&
+    check_file_existence -f vgldiscovery/target/vgldiscovery.jar &&
+    check_file_existence -f vglloadbalancer/target/vglloadbalancer.jar
 }
 
 # Checks if load-balancing related packages are build on the system
 check_no_load_balancing_packages() {
   check_file_existence -f vglconfig/target/vglconfig.jar &&
-  check_file_existence -f vglservice/target/vglservice.jar && 
-  check_file_existence -d vglfront/node_modules 
+    check_file_existence -f vglservice/target/vglservice.jar &&
+    check_file_existence -d vglfront/node_modules
 }
 
 # Read environment variables and auto-configure some variables related to the Git / DNS environment
@@ -859,13 +859,13 @@ configure_environment_variables() {
 
       if [ "${environment}" = "${SYSTEM_ENVIRONMENT}" ]; then # System-dependent servers settings
         export CONFIG_SERVER_URL="http://localhost:${CONFIG_SERVER_PORT}"
-        
+
         if [ "${mode}" = "${LOAD_BALANCING_MODE}" ]; then
           export EUREKA_SERVERS_URLS="http://localhost:${DISCOVERY_SERVER_PORT}/eureka"
         else
           unset EUREKA_SERVERS_URLS
         fi
-        
+
         unset DB_URL
         unset DB_USERNAME
         unset DB_PASSWORD
@@ -923,10 +923,42 @@ build() {
 # Parameters :
 #   - $@ : parameters to pass to Docker Compose
 # shellcheck disable=SC2016
+# shellcheck disable=SC2086
 # shellcheck disable=SC2154
 start_docker_compose_services() {
-  ${docker_compose_cli} "$@" -d || start_error=$?
-  ${docker_compose_cli} "$@" &
+  # Project name passed to the function
+  if [ -n "${project_name}" ]; then
+    project_argument="-p ${project_name}"
+  fi
+
+  # Start containers or stop them in the event of an error
+  while ! block_exit; do true; done
+  ${docker_compose_cli} "$@" -d || {
+    start_error=$?
+    while ! release_exit; do true; done
+
+    ${docker_compose_cli} ${project_argument} stop -t 20 || {
+      while ! block_exit; do true; done
+      ${docker_compose_cli} ${project_argument} kill
+    }
+
+    cleanup ${start_error} "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+    return "${exit_code}"
+  }
+
+  # Show the services output and stop them when CTRL-C is triggered
+  while ! release_exit; do true; done
+  ${docker_compose_cli} "$@"
+  
+  ${docker_compose_cli} ${project_argument} stop -t 20 || { 
+    while ! block_exit; do true; done
+    ${docker_compose_cli} ${project_argument} kill
+  } || {
+    cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+    return "${exit_code}"
+  }
+
+  cleanup 130 "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 }
 
 # Starts a Java process
@@ -957,33 +989,20 @@ start() {
   cd_to_script_dir || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
   if ${start}; then
-    block_exit || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}" || exit $?
     start_error=0
+    block_exit || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
     if [ "${environment}" -eq "${DOCKER_ENVIRONMENT}" ]; then # Docker environment
+      while ! queue_exit; do true; done
+
       echo "Launching Docker services ..."
 
       # Start the services
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        start_docker_compose_services up
+        project_name="vglloadbalancing-enabled" start_docker_compose_services up
       else
-        start_docker_compose_services -f docker-compose-no-load-balancing.yml --env-file no-load-balancing.env up
+        project_name="vglloadbalancing-disabled" start_docker_compose_services -f docker-compose-no-load-balancing.yml --env-file no-load-balancing.env up
       fi
-      
-      DockerComposeOrchestrator_pid=$!
-
-      while ! queue_exit; do true; done
-      wait_for_process_to_start "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" 5 || start_error=$?
-
-      while ! block_exit; do true; done
-
-      if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-enabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-enabled kill" "" false
-      else
-        register_process_info "DockerComposeOrchestrator" "${DockerComposeOrchestrator_pid}" "${docker_compose_cli} -p vglloadbalancing-disabled stop -t 20" "${docker_compose_cli} -p vglloadbalancing-disabled kill" "" false
-      fi
-      
-      while ! queue_exit; do true; done
     else # System-dependent environment
       while ! queue_exit; do true; done
 
@@ -1039,52 +1058,55 @@ start() {
       done <<EOF
 $(get_registered_processes_info)
 EOF
-    fi
 
-    # A process error occurred
-    if [ "${start_error}" -ne 0 ]; then
-      cleanup "${start_error}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-      return "${exit_code}"
-    fi
-
-    # Check if there is at least one service started to enter the check loop
-    found_started_service=false
-    while IFS="#" read -r SERVICE_NAME PID STOP_COMMAND KILL_COMMAND CHECK_COMMAND IS_GROUPED TMP_RUNNER_FILE; do
-      if [ -n "${SERVICE_NAME}" ]; then
-        found_started_service=true
-        break
-      fi
-    done <<EOF
-$(get_registered_processes_info)
-EOF
-
-    # No services were started
-    if ! ${found_started_service}; then
-      cleanup 3 "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-      return "${exit_code}"
-    fi
-
-    # Loop through processes and exit if any has exited
-    while true; do
-      # A pending user cleanup signal was triggered
-      if is_waiting_for_cleanup; then
-        cleanup "${queued_signal_code}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-        break
+      # A process error occurred
+      if [ "${start_error}" -ne 0 ]; then
+        cleanup "${start_error}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        return "${exit_code}"
       fi
 
+      # Check if there is at least one service started to enter the check loop
+      found_started_service=false
       while IFS="#" read -r SERVICE_NAME PID STOP_COMMAND KILL_COMMAND CHECK_COMMAND IS_GROUPED TMP_RUNNER_FILE; do
         if [ -n "${SERVICE_NAME}" ]; then
-          check_process_existence "${CHECK_COMMAND}" "${PID}" || { cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"; break; }
+          found_started_service=true
+          break
         fi
-
-        sleep 1 &
-        wait $!
       done <<EOF
 $(get_registered_processes_info)
 EOF
-    done
+
+      # No services were started
+      if ! ${found_started_service}; then
+        cleanup 3 "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        return "${exit_code}"
+      fi
+
+      # Loop through processes and exit if any has exited
+      while true; do
+        # A pending user cleanup signal was triggered
+        if is_waiting_for_cleanup; then
+          cleanup "${queued_signal_code}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+          break
+        fi
+
+        while IFS="#" read -r SERVICE_NAME PID STOP_COMMAND KILL_COMMAND CHECK_COMMAND IS_GROUPED TMP_RUNNER_FILE; do
+          if [ -n "${SERVICE_NAME}" ]; then
+            check_process_existence "${CHECK_COMMAND}" "${PID}" || {
+              cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+              break
+            }
+          fi
+
+          sleep 1 &
+          wait $!
+        done <<EOF
+$(get_registered_processes_info)
+EOF
+      done
+    fi
   fi
-  
+
   return "${exit_code}"
 }
 
@@ -1328,6 +1350,16 @@ unblock_exit() {
   fi
 }
 
+release_exit() {
+  trap 'true' INT
+  trap 'true' TERM
+  trap 'true' EXIT
+
+  if [ -n "${stty_settings}" ]; then
+    stty "${stty_settings}" 2>/dev/null || true
+  fi
+}
+
 # Eval from a function (allows to mock the function)
 #
 # Parameters :
@@ -1433,17 +1465,17 @@ run() {
   # Initialize the shell parameters to handle the script in good conditions (exit / cleanup on error, separate process groups)
   init_shell_params &&
 
-  # Auto-choose the launch / environment method
-  auto_detect_system_stack && 
+    # Auto-choose the launch / environment method
+    auto_detect_system_stack &&
 
-  # Read and configure environment variables
-  configure_environment_variables && 
+    # Read and configure environment variables
+    configure_environment_variables &&
 
-  # Build demo packages
-  build && 
+    # Build demo packages
+    build &&
 
-  # Ready : start the demo !
-  start
+    # Ready : start the demo !
+    start
 }
 
 main "$@"
