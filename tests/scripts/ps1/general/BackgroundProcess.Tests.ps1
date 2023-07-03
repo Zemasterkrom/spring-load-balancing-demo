@@ -43,8 +43,8 @@ Describe 'BackgroundProcess' -ForEach @(
         }
 
         Context 'Standard process creation without temporary file check' -ForEach @(
-            @{ StopCallAlreadyExecuted = $false; StopKeyword = "Stopping"; StoppedKeyword = "Stopped"; ExpectedStopCallState = $true }
-            @{ StopCallAlreadyExecuted = $true; StopKeyword = "Killing";  StoppedKeyword = "Killed"; ExpectedStopCallState = $true }
+            @{ ForceKillAtNextRequest = $false; StopKeyword = "Stopping"; StoppedKeyword = "Stopped"; ExpectedStopCallState = $true }
+            @{ ForceKillAtNextRequest = $true; StopKeyword = "Killing";  StoppedKeyword = "Killed"; ExpectedStopCallState = $true }
         ) {
             Context 'Basic process creation' {
                 BeforeEach {
@@ -53,7 +53,7 @@ Describe 'BackgroundProcess' -ForEach @(
                     $Name = "BasicProcess"
                 }
     
-                It "creates the process without starting it : force kill = <stopcallalreadyexecuted>" {
+                It "creates the process without starting it : force kill = <forcekillatnextrequest>" {
                     $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
                     $BackgroundProcess.TaskStartInfo.NoNewWindow | Should -BeExactly $true
                     $BackgroundProcess.Name | Should -BeExactly $Name
@@ -61,7 +61,7 @@ Describe 'BackgroundProcess' -ForEach @(
                     $BackgroundProcess.TaskStartInfo | Should -BeExactly $TaskStartInfo
                     $BackgroundProcess.IsAlive() | Should -BeFalse
                     $BackgroundProcess.Stop() | Should -BeExactly 0
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeFalse
+                    $BackgroundProcess.ForceKillAtNextRequest | Should -BeFalse
                     $TestOutput | Should -BeNullOrEmpty
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -72,10 +72,10 @@ Describe 'BackgroundProcess' -ForEach @(
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Process.HasExited | Should -BeFalse
-                    $BackgroundProcess.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $BackgroundProcess.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $BackgroundProcess.Stop() | Should -BeExactly 0
                     $BackgroundProcess.Process.HasExited | Should -BeTrue 
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeExactly $ExpectedStopCallState
+                    $BackgroundProcess.ForceKillAtNextRequest | Should -BeExactly $ExpectedStopCallState
                     $TestOutput | Should -BeExactly "Starting the $Name process;$StopKeyword the $Name process with PID $( $BackgroundProcess.Process.Id );Killed the $Name process with PID $( $BackgroundProcess.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -110,15 +110,15 @@ Describe 'BackgroundProcess' -ForEach @(
                     Remove-Item "$env:TEMP\$TemporaryFileName"
                 }
     
-                It "creates the process that starts a nested process, starts it and stops the process tree : force kill = <stopcallalreadyexecuted>" {
+                It "creates the process that starts a nested process, starts it and stops the process tree : force kill = <forcekillatnextrequest>" {
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Process.HasExited | Should -BeFalse
                     { Wait-TemporaryFile } | Should -Not -Throw System.IO.FileNotFoundException
-                    $BackgroundProcess.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $BackgroundProcess.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $BackgroundProcess.Stop() | Should -BeExactly 0
                     $BackgroundProcess.Process.HasExited | Should -BeTrue 
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeExactly $ExpectedStopCallState
+                    $BackgroundProcess.ForceKillAtNextRequest | Should -BeExactly $ExpectedStopCallState
                     $TestOutput | Should -Match "Starting the $Name process;$StopKeyword the $Name process with PID $( $BackgroundProcess.Process.Id );(Killing the process with PID [0-9]+ ?)+;Killed the $Name process with PID $( $BackgroundProcess.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -132,7 +132,7 @@ Describe 'BackgroundProcess' -ForEach @(
                     $BackgroundProcess = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildProcess($TaskStartInfo, $Name)
                 }
     
-                It "starts the process that creates a temporary file, and waits for the process to stop when the file is deleted : force kill = <stopcallalreadyexecuted>" {
+                It "starts the process that creates a temporary file, and waits for the process to stop when the file is deleted : force kill = <forcekillatnextrequest>" {
                     $BackgroundProcess.TemporaryFileCheckEnabled | Should -BeTrue
                     $BackgroundProcess.CheckedTemporaryFileExistence | Should -BeFalse
                     $BackgroundProcess.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitUncompleted)
@@ -140,12 +140,12 @@ Describe 'BackgroundProcess' -ForEach @(
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Process.HasExited | Should -BeFalse 
-                    $BackgroundProcess.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $BackgroundProcess.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $BackgroundProcess.Stop() | Should -BeExactly 0
                     $BackgroundProcess.Process.HasExited | Should -BeTrue
                     $BackgroundProcess.CheckedTemporaryFileExistence | Should -BeTrue
                     $BackgroundProcess.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitCompleted)
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeExactly $ExpectedStopCallState
+                    $BackgroundProcess.ForceKillAtNextRequest | Should -BeExactly $ExpectedStopCallState
                     "$env:TEMP\$($BackgroundProcess.TemporaryFileName)" | Should -Not -Exist
                     $TestOutput | Should -BeExactly "Starting the $Name process;$StopKeyword the $Name process with PID $( $BackgroundProcess.Process.Id );Waiting for $Name to create the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);$StoppedKeyword the $Name process with PID $( $BackgroundProcess.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
@@ -213,7 +213,7 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
                 $BackgroundProcess.Start()
                 $BackgroundProcess.IsAlive() | Should -BeTrue
                 { $BackgroundProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException])
-                $BackgroundProcess.StopCallAlreadyExecuted | Should -BeTrue
+                $BackgroundProcess.ForceKillAtNextRequest | Should -BeTrue
                 $TestOutput | Should -BeExactly "Starting the $( $BackgroundProcess.Name ) process;Stopping the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id );"
                 $TestWarningOutput | Should -BeNullOrEmpty
                 $TestErrorOutput | Should -BeNullOrEmpty
@@ -260,7 +260,7 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
                     $BackgroundProcess.Start()
                     $BackgroundProcess.IsAlive() | Should -BeTrue
                     $BackgroundProcess.Stop() | Should -BeExactly ([BackgroundTask]::ProcessHasAlreadyExited)
-                    $BackgroundProcess.StopCallAlreadyExecuted | Should -BeTrue
+                    $BackgroundProcess.ForceKillAtNextRequest | Should -BeTrue
                     $TestOutput | Should -BeExactly "Starting the $( $BackgroundProcess.Name ) process;Stopping the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id );Waiting for $( $BackgroundProcess.Name ) to create the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
                     $TestWarningOutput | Should -BeExactly "$( $BackgroundProcess.Name ) has already exited;"
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -310,7 +310,7 @@ class MockedBackgroundTaskFactoryTwo: BackgroundTaskFactory {
                 $BackgroundProcess.Start()
                 $BackgroundProcess.IsAlive() | Should -BeTrue
                 $BackgroundProcess.Stop() | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
-                $BackgroundProcess.StopCallAlreadyExecuted | Should -BeTrue
+                $BackgroundProcess.ForceKillAtNextRequest | Should -BeTrue
                 $TestOutput | Should -BeExactly "Starting the $( $BackgroundProcess.Name ) process;Stopping the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id );Waiting for $( $BackgroundProcess.Name ) to create the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);Killed the $( $BackgroundProcess.Name ) process with PID $( $BackgroundProcess.Process.Id );"
                 $TestWarningOutput | Should -BeNullOrEmpty
                 $TestErrorOutput | Should -BeExactly "Failed to wait for the creation of the $env:TEMP\$( $BackgroundProcess.TemporaryFileName ) file;"

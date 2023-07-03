@@ -38,8 +38,8 @@ Describe 'BackgroundJob' {
         }
 
         Context 'Standard job creation without temporary file check' -ForEach @(
-            @{ StopCallAlreadyExecuted = $false; StopKeyword = "Stopping"; StoppedKeyword = "Stopped"; ExpectedStopCallState = $true }
-            @{ StopCallAlreadyExecuted = $true; StopKeyword = "Killing";  StoppedKeyword = "Killed"; ExpectedStopCallState = $true }
+            @{ ForceKillAtNextRequest = $false; StopKeyword = "Stopping"; StoppedKeyword = "Stopped"; ExpectedStopCallState = $true }
+            @{ ForceKillAtNextRequest = $true; StopKeyword = "Killing";  StoppedKeyword = "Killed"; ExpectedStopCallState = $true }
         ) {
             Context 'Basic job creation' {
                 BeforeEach {
@@ -48,14 +48,14 @@ Describe 'BackgroundJob' {
                     $Name = "BasicJob"
                 }
     
-                It "creates the job without starting it : force kill = <stopcallalreadyexecuted>" {
+                It "creates the job without starting it : force kill = <forcekillatnextrequest>" {
                     $BackgroundJob = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildJob($TaskStartInfo, $Name)
                     $BackgroundJob.TaskStartInfo.ScriptBlock | Should -BeExactly $TaskStartInfo.ScriptBlock
                     $BackgroundJob.Name | Should -BeExactly $Name
                     $BackgroundJob.TemporaryFileCheckEnabled | Should -BeExactly $TemporaryFileCheckEnabled
                     $BackgroundJob.IsAlive() | Should -BeFalse
                     $BackgroundJob.Stop() | Should -BeExactly 0
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeFalse
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeFalse
                     $TestOutput | Should -BeNullOrEmpty
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -66,10 +66,10 @@ Describe 'BackgroundJob' {
                     $BackgroundJob.Start()
                     $BackgroundJob.IsAlive() | Should -BeTrue
                     $BackgroundJob.Process.HasExited | Should -BeFalse
-                    $BackgroundJob.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $BackgroundJob.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $BackgroundJob.Stop() | Should -BeExactly 0
                     $BackgroundJob.Process.HasExited | Should -BeTrue 
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeExactly $ExpectedStopCallState
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeExactly $ExpectedStopCallState
                     $TestOutput | Should -BeExactly "Starting the $Name job;$StopKeyword the $Name job with PID $( $BackgroundJob.Process.Id );Killed the $Name job with PID $( $BackgroundJob.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -84,7 +84,7 @@ Describe 'BackgroundJob' {
                     $BackgroundJob = [BackgroundTaskFactory]::new($TemporaryFileCheckEnabled).buildJob($TaskStartInfo, $Name)
                 }
     
-                It "starts the job that creates a temporary file, and waits for the job to stop when the file is deleted : force kill = <stopcallalreadyexecuted>" {
+                It "starts the job that creates a temporary file, and waits for the job to stop when the file is deleted : force kill = <forcekillatnextrequest>" {
                     $BackgroundJob.TemporaryFileCheckEnabled | Should -BeTrue
                     $BackgroundJob.CheckedTemporaryFileExistence | Should -BeFalse
                     $BackgroundJob.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitUncompleted)
@@ -104,12 +104,12 @@ Describe 'BackgroundJob' {
                     $BackgroundJob.Start()
                     $BackgroundJob.IsAlive() | Should -BeTrue
                     $BackgroundJob.Process.HasExited | Should -BeFalse 
-                    $BackgroundJob.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $BackgroundJob.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $BackgroundJob.Stop() | Should -BeExactly 0
                     $BackgroundJob.Process.HasExited | Should -BeTrue
                     $BackgroundJob.CheckedTemporaryFileExistence | Should -BeTrue
                     $BackgroundJob.CheckedTemporaryFileExistenceState | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitCompleted)
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeExactly $ExpectedStopCallState
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeExactly $ExpectedStopCallState
                     "$env:TEMP\$($BackgroundJob.TemporaryFileName)" | Should -Not -Exist
                     $TestOutput | Should -BeExactly "Starting the $Name job;$StopKeyword the $Name job with PID $( $BackgroundJob.Process.Id );Waiting for $Name to create the $env:TEMP\$( $BackgroundJob.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);$StoppedKeyword the $Name job with PID $( $BackgroundJob.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
@@ -207,7 +207,7 @@ Describe 'BackgroundJob' {
                     $BackgroundJob.Start()
                     $BackgroundJob.IsAlive() | Should -BeTrue
                     { $BackgroundJob.Stop() } | Should -Throw -ExceptionType ([StopBackgroundJobException])
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeTrue
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeTrue
                     $TestOutput | Should -BeExactly "Starting the $( $BackgroundJob.Name ) job;Stopping the $( $BackgroundJob.Name ) job with PID $( $BackgroundJob.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -237,7 +237,7 @@ Describe 'BackgroundJob' {
                     $BackgroundJob.Start()
                     $BackgroundJob.IsAlive() | Should -BeTrue
                     { $BackgroundJob.Stop() } | Should -Throw -ExceptionType ([StopBackgroundJobException])
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeTrue
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeTrue
                     $TestOutput | Should -BeExactly "Starting the $( $BackgroundJob.Name ) job;Stopping the $( $BackgroundJob.Name ) job with PID $( $BackgroundJob.Process.Id );"
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -285,7 +285,7 @@ class MockedBackgroundTaskFactory: BackgroundTaskFactory {
                     $BackgroundJob.Start()
                     $BackgroundJob.IsAlive() | Should -BeTrue
                     $BackgroundJob.Stop() | Should -BeExactly ([BackgroundTask]::ProcessHasAlreadyExited)
-                    $BackgroundJob.StopCallAlreadyExecuted | Should -BeTrue
+                    $BackgroundJob.ForceKillAtNextRequest | Should -BeTrue
                     $TestOutput | Should -BeExactly "Starting the $( $BackgroundJob.Name ) job;Stopping the $( $BackgroundJob.Name ) job with PID $( $BackgroundJob.Process.Id );Waiting for $( $BackgroundJob.Name ) to create the $env:TEMP\$( $BackgroundJob.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);"
                     $TestWarningOutput | Should -BeExactly "$( $BackgroundJob.Name ) has already exited;"
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -334,7 +334,7 @@ class MockedBackgroundTaskFactoryTwo: BackgroundTaskFactory {
                 $BackgroundJob.Start()
                 $BackgroundJob.IsAlive() | Should -BeTrue
                 $BackgroundJob.Stop() | Should -BeExactly ([BackgroundTask]::TemporaryFileWaitTimeoutError)
-                $BackgroundJob.StopCallAlreadyExecuted | Should -BeTrue
+                $BackgroundJob.ForceKillAtNextRequest | Should -BeTrue
                 $TestOutput | Should -BeExactly "Starting the $( $BackgroundJob.Name ) job;Stopping the $( $BackgroundJob.Name ) job with PID $( $BackgroundJob.Process.Id );Waiting for $( $BackgroundJob.Name ) to create the $env:TEMP\$( $BackgroundJob.TemporaryFileName ) file ... ($( [BackgroundTask]::TemporaryFileWaitTimeout ) seconds);Killed the $( $BackgroundJob.Name ) job with PID $( $BackgroundJob.Process.Id );"
                 $TestWarningOutput | Should -BeNullOrEmpty
                 $TestErrorOutput | Should -BeExactly "Failed to wait for the creation of the $env:TEMP\$( $BackgroundJob.TemporaryFileName ) file;"

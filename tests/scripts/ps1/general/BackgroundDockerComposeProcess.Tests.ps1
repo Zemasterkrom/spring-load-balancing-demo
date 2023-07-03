@@ -108,13 +108,13 @@ Describe 'BackgroundDockerComposeProcess' {
                     $DockerComposeProcess.TemporaryFileCheckEnabled | Should -BeFalse
                     $DockerComposeProcess.IsAlive() | Should -BeFalse
                     $DockerComposeProcess.Stop() | Should -BeExactly 0
-                    $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeFalse
+                    $DockerComposeProcess.ForceKillAtNextRequest | Should -BeFalse
                 }
             }
 
             Context 'Orchestrator process handling' -ForEach @(
-                @{ StopCallAlreadyExecuted = $false; ExpectedStopCallState = $true }
-                @{ StopCallAlreadyExecuted = $true; ExpectedStopCallState = $true }
+                @{ ForceKillAtNextRequest = $false; ExpectedStopCallState = $true }
+                @{ ForceKillAtNextRequest = $true; ExpectedStopCallState = $true }
             ) {
                 BeforeEach {
                     $global:DockerComposeCli = $DockerComposeCli
@@ -167,7 +167,7 @@ Describe 'BackgroundDockerComposeProcess' {
 
                     $DockerComposeProcess = [BackgroundTaskFactory]::new($true).buildDockerComposeProcess($TaskStartInfo, "DockerComposeV2ProcessHandlingTest")
                 
-                    if (-not($StopCallAlreadyExecuted)) {
+                    if (-not($ForceKillAtNextRequest)) {
                         $ExpectedRegularExpressionMatch = "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c $DockerComposeCli ? $ExpectedProjectArgumentListDescription stop $ExpectedServicesDescription -t $( $DockerComposeProcess.TaskStopInfo.StandardStopTimeout) 2>&1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                     } else {
                         $ExpectedRegularExpressionMatch = "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Killing the $( $DockerComposeProcess.Name ) Docker Compose services;/c $DockerComposeCli ? $ExpectedProjectArgumentListDescription kill $ExpectedServicesDescription 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
@@ -175,23 +175,23 @@ Describe 'BackgroundDockerComposeProcess' {
                 
                 }
         
-                It "configures a Docker Compose (<dockercomposecli>) orchestrator process, starts it and stops it : expected project argument list description = <expectedprojectargumentlistdescription> ; expected start arguments description = <expectedstartargumentsdescription> ; expected service description = <expectedservicesdescription> ; force kill = <stopcallalreadyexecuted>" {
+                It "configures a Docker Compose (<dockercomposecli>) orchestrator process, starts it and stops it : expected project argument list description = <expectedprojectargumentlistdescription> ; expected start arguments description = <expectedstartargumentsdescription> ; expected service description = <expectedservicesdescription> ; force kill = <forcekillatnextrequest>" {
                     $DockerComposeProcess.Start()
                     $DockerComposeProcess.IsAlive() | Should -BeTrue
-                    $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                    $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.HasExited | Should -BeTrue
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.ProcessName | Should -BeExactly $DockerComposeExecutable
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.StartInfo.ArgumentList | Should -BeExactly "$ExecutableDockerComposeArgument $ExpectedProjectArgumentListDescription $ExpectedStartArgumentsDescription up $ExpectedServicesDescription -d"
                     $DockerComposeProcess.DockerComposeServicesLogger.Process.HasExited | Should -BeFalse
                     $DockerComposeProcess.DockerComposeServicesLogger.Process.ProcessName | Should -BeExactly ($DockerComposeProcess.DockerComposeServicesOrchestrator.Process.ProcessName)
                     $DockerComposeProcess.DockerComposeServicesLogger.Process.StartInfo.ArgumentList | Should -BeExactly "$ExecutableDockerComposeArgument $ExpectedProjectArgumentListDescription $ExpectedStartArgumentsDescription up $ExpectedServicesDescription"
-                    $DockerComposeProcess.StopCallAlreadyExecuted = $StopCallAlreadyExecuted
+                    $DockerComposeProcess.ForceKillAtNextRequest = $ForceKillAtNextRequest
                     $DockerComposeProcess.Stop() | Should -BeExactly 0
-                    $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                    $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                     $DockerComposeProcess.DockerComposeServicesOrchestrator.Process.HasExited | Should -BeTrue 
-                    $DockerComposeProcess.DockerComposeServicesLogger.StopCallAlreadyExecuted | Should -BeTrue
+                    $DockerComposeProcess.DockerComposeServicesLogger.ForceKillAtNextRequest | Should -BeTrue
                     $DockerComposeProcess.DockerComposeServicesLogger.Process.HasExited | Should -BeTrue 
-                    $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
+                    $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
                     $TestOutput | Should -MatchExactly $ExpectedRegularExpressionMatch
                     $TestWarningOutput | Should -BeNullOrEmpty
                     $TestErrorOutput | Should -BeNullOrEmpty
@@ -390,9 +390,9 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         $DockerComposeProcess.Stop() | Should -BeExactly ([BackgroundTask]::KilledDueToUnknownError)
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesLogger.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesLogger.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : . Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
@@ -435,8 +435,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         $DockerComposeProcess.Stop()  | Should -BeExactly ([BackgroundTask]::KilledDueToUnknownError)
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error. Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeExactly "Failed to kill the process with PID 1 : Fatal stop error;"
@@ -477,8 +477,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         $DockerComposeProcess.Stop()  | Should -BeExactly ([BackgroundTask]::KilledDueToUnknownError)
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : - Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error. Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeExactly "Failed to kill the process with PID 1 : Fatal stop error;"
@@ -519,8 +519,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         { $DockerComposeProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException]) -ExpectedMessage "Docker Compose $( $DockerComposeProcess.Name ) services kill failed : "
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : . Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeNullOrEmpty
@@ -566,8 +566,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         { $DockerComposeProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException]) -ExpectedMessage "Docker Compose $( $DockerComposeProcess.Name ) services kill failed : Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error"
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error. Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeExactly "Failed to kill the process with PID 1 : Fatal stop error;Failed to kill the process with PID 1 : Fatal stop error;"
@@ -610,8 +610,8 @@ Describe 'BackgroundDockerComposeProcess' {
                         $DockerComposeProcess.Start()
                         $DockerComposeProcess.IsAlive() | Should -BeTrue
                         { $DockerComposeProcess.Stop() } | Should -Throw -ExceptionType ([StopBackgroundProcessException]) -ExpectedMessage "Docker Compose $( $DockerComposeProcess.Name ) services kill failed : - Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error"
-                        $DockerComposeProcess.StopCallAlreadyExecuted | Should -BeTrue
-                        $DockerComposeProcess.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted | Should -BeTrue
+                        $DockerComposeProcess.ForceKillAtNextRequest | Should -BeTrue
+                        $DockerComposeProcess.DockerComposeServicesOrchestrator.ForceKillAtNextRequest | Should -BeTrue
                         $TestOutput | Should -BeExactly "Starting the $( $DockerComposeProcess.Name ) Docker Compose services;Starting the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process;Starting the $( $DockerComposeProcess.Name ) Docker Compose services logger;Starting the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process;Stopping the $( $DockerComposeProcess.Name ) Docker Compose services;/c docker compose  stop  -t $( [BackgroundTask]::StandardStopTimeout ) 2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Stopping the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;/c docker compose  kill  2>&1;Killing the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killed the $( $DockerComposeProcess.DockerComposeServicesOrchestrator.Name ) process with PID 1;Killing the $( $DockerComposeProcess.DockerComposeServicesLogger.Name ) process with PID 1;"
                         $TestWarningOutput | Should -BeExactly "Failed to stop a $( $DockerComposeProcess.Name ) Docker Compose process : Docker Compose $( $DockerComposeProcess.Name ) services stop failed : - Failed to kill the process tree of the process with PPID 1 : Failed to kill the process with PID 1 : Fatal stop error. Trying to kill the Docker Compose services and the logger process.;"
                         $TestErrorOutput | Should -BeExactly "Failed to kill the process with PID 1 : Fatal stop error;Failed to kill the process with PID 1 : Fatal stop error;"

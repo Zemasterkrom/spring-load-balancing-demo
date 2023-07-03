@@ -849,8 +849,8 @@ class BackgroundTask {
     # Flag to enable or disable the temporary file check
     [ValidateNotNull()] [Boolean] $TemporaryFileCheckEnabled
 
-    # Flag which is set to true once a task stop is requested
-    [ValidateNotNull()] [Boolean] $StopCallAlreadyExecuted
+    # Flag which is set to true to indicate that a force kill will be performed on the next shutdown request
+    [ValidateNotNull()] [Boolean] $ForceKillAtNextRequest
 
     # Default timeouts
     static [Int] $TemporaryFileWaitTimeout = 15
@@ -903,7 +903,7 @@ class BackgroundTask {
         $this.CheckedTemporaryFileExistence = $false
         $this.CheckedTemporaryFileExistenceState = [BackgroundTask]::TemporaryFileWaitUncompleted
         $this.TemporaryFileCheckEnabled = $TemporaryFileCheckEnabled
-        $this.StopCallAlreadyExecuted = $false
+        $this.ForceKillAtNextRequest = $false
         $this.TemporaryFileName = if ($TemporaryFileCheckEnabled) {
             $this.Name.ToLower() + "_" + [Guid]::NewGuid().ToString()
         } else {
@@ -977,7 +977,7 @@ class BackgroundTask {
             if (-not($this.IsAlive())) {
                 $this.CheckTaskStartInfo()
                 $this.StartIfNotAlive()
-                $this.StopCallAlreadyExecuted = $false
+                $this.ForceKillAtNextRequest = $false
             }
         } catch [StartBackgroundProcessException] {
             $this.Stop()
@@ -1010,7 +1010,7 @@ class BackgroundTask {
 
             if ( $this.CanStop()) {
                 $StopCode = $this.StopIfAlive()
-                $this.StopCallAlreadyExecuted = $true
+                $this.ForceKillAtNextRequest = $true
                 $this.GracefulStop()
 
                 return $StopCode
@@ -1018,7 +1018,7 @@ class BackgroundTask {
 
             return 0
         } catch {
-            $this.StopCallAlreadyExecuted = $true
+            $this.ForceKillAtNextRequest = $true
             $this.GracefulStop()
             throw $_
         }
@@ -1215,7 +1215,7 @@ class BackgroundProcess: BackgroundTask {
         $ForceKill = $false
         $ReturnCode = [BackgroundTask]::SuccessfullyStopped
 
-        if (-not($this.StopCallAlreadyExecuted)) {
+        if (-not($this.ForceKillAtNextRequest)) {
             Write-Information "Stopping the $( $this.Name ) process with PID $( $this.Process.Id )"
         } else {
             Write-Information "Killing the $( $this.Name ) process with PID $( $this.Process.Id )"
@@ -1223,7 +1223,7 @@ class BackgroundProcess: BackgroundTask {
 
         $SyncCode = $this.SyncWithTemporaryFile()
 
-        if (($SyncCode -eq [BackgroundTask]::TemporaryFileWaitCompleted) -and (-not($this.StopCallAlreadyExecuted))) {
+        if (($SyncCode -eq [BackgroundTask]::TemporaryFileWaitCompleted) -and (-not($this.ForceKillAtNextRequest))) {
             try {
                 # Temporary file successfully created : wait for the process to stop
                 $this.Process | Wait-Process -Timeout $this.TaskStopInfo.StandardStopTimeout > $null
@@ -1533,7 +1533,7 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
                 throw [StartBackgroundProcessException]::new("$( $this.Name ) Docker Compose services start failed")
             }
 
-            $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $true
+            $this.DockerComposeServicesOrchestrator.ForceKillAtNextRequest = $true
             
             Write-Information "Starting the $( $this.Name ) Docker Compose services logger"
             $this.DockerComposeServicesLogger.Start()
@@ -1597,12 +1597,12 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
     hidden [Int] StopIfAlive() {
         $this.TemporaryFileCheckEnabled = $false
 
-        if ($this.StopCallAlreadyExecuted) {
-            $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $true
-            $this.DockerComposeServicesLogger.StopCallAlreadyExecuted = $true
+        if ($this.ForceKillAtNextRequest) {
+            $this.DockerComposeServicesOrchestrator.ForceKillAtNextRequest = $true
+            $this.DockerComposeServicesLogger.ForceKillAtNextRequest = $true
         }
 
-        if (-not($this.StopCallAlreadyExecuted)) {
+        if (-not($this.ForceKillAtNextRequest)) {
             Write-Information "Stopping the $( $this.Name ) Docker Compose services"
         } else {
             Write-Information "Killing the $( $this.Name ) Docker Compose services"
@@ -1611,7 +1611,7 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
         try {
             # Stop the service container gracefully
             # StdErr redirection bug, using the old CMD as alternative: https://github.com/PowerShell/PowerShell/issues/4002
-            if (-not($this.StopCallAlreadyExecuted)) {
+            if (-not($this.ForceKillAtNextRequest)) {
                 return $this.StopServices(
                     "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] ) $( $this.TaskStartInfo.DockerComposeProcessArgumentList ) $( $this.TaskStartInfo.ProjectArgumentList ) stop $( $this.TaskStartInfo.Services ) -t $( $this.TaskStopInfo.StandardStopTimeout ) 2>&1",
                     [BackgroundTask]::SuccessfullyStopped,
@@ -1619,8 +1619,8 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
                 )
             }
             
-            $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $true
-            $this.DockerComposeServicesLogger.StopCallAlreadyExecuted = $true
+            $this.DockerComposeServicesOrchestrator.ForceKillAtNextRequest = $true
+            $this.DockerComposeServicesLogger.ForceKillAtNextRequest = $true
 
             return $this.StopServices(
                 "$( $this.DockerComposeCli.SystemStackComponents[0].Command[0] ) $( $this.TaskStartInfo.DockerComposeProcessArgumentList ) $( $this.TaskStartInfo.ProjectArgumentList ) kill $( $this.TaskStartInfo.Services ) 2>&1",
@@ -1628,8 +1628,8 @@ class BackgroundDockerComposeProcess: BackgroundProcess {
                 "Docker Compose $( $this.Name ) services kill failed"
             )
         } catch {
-            $this.DockerComposeServicesOrchestrator.StopCallAlreadyExecuted = $true
-            $this.DockerComposeServicesLogger.StopCallAlreadyExecuted = $true
+            $this.DockerComposeServicesOrchestrator.ForceKillAtNextRequest = $true
+            $this.DockerComposeServicesLogger.ForceKillAtNextRequest = $true
                 
             # Fatal error or timeout : force kill the service container
             Write-Warning "Failed to stop a $( $this.Name ) Docker Compose process : $( $_.Exception.Message ). Trying to kill the Docker Compose services and the logger process."
@@ -1737,7 +1737,7 @@ exit" -PassThru
         $ForceKill = $false
         $ReturnCode = [BackgroundTask]::SuccessfullyStopped
 
-        if (-not($this.StopCallAlreadyExecuted)) {
+        if (-not($this.ForceKillAtNextRequest)) {
             Write-Information "Stopping the $( $this.Name ) job with PID $( $this.Process.Id )"
         } else {
             Write-Information "Killing the $( $this.Name ) job with PID $( $this.Process.Id )"
@@ -1745,7 +1745,7 @@ exit" -PassThru
 
         $SyncCode = $this.SyncWithTemporaryFile()
 
-        if (($SyncCode -eq [BackgroundTask]::TemporaryFileWaitCompleted) -and (-not($this.StopCallAlreadyExecuted))) {
+        if (($SyncCode -eq [BackgroundTask]::TemporaryFileWaitCompleted) -and (-not($this.ForceKillAtNextRequest))) {
             # Temporary file successfully created : wait for the job to stop
             try {
                 $this.Process | Wait-Process -Timeout $this.TaskStopInfo.StandardStopTimeout> $null
@@ -2270,6 +2270,10 @@ class Runner {
     hidden static [Void] StopRunningProcesses() {
         foreach ($Task in [Runner]::Tasks) {
             if (Watch-CleanupShortcut) {
+                foreach ($TaskToKill in [Runner]::Tasks) {
+                    $TaskToKill.ForceKillAtNextRequest = $true
+                }
+
                 [Runner]::Cleanup(130)
                 break
             }
