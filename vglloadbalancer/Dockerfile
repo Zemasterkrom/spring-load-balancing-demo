@@ -13,6 +13,7 @@ ENV EUREKA_SERVERS_URLS=${EUREKA_SERVER_URLS}
 ENV ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 ENV LOADBALANCER_HOSTNAME=${LOADBALANCER_HOSTNAME:-$(hostname)}
 COPY --from=builder /usr/vglloadbalancer/target/*.jar app.jar
+COPY ./server/docker/scripts/*.sh ./
 EXPOSE 10000
 
-ENTRYPOINT java -Dspring.config.location=file:/usr/vglloadbalancer/application.properties -XX:TieredStopAtLevel=1 -DCONFIG_SERVER_URL=${CONFIG_SERVER_URL} -DEUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS} -DALLOWED_ORIGINS=${ALLOWED_ORIGINS} -DLOADBALANCER_HOSTNAME=${LOADBALANCER_HOSTNAME:-$(hostname)} -jar /usr/vglloadbalancer/app.jar
+ENTRYPOINT ["/usr/vglloadbalancer/serve.sh"]

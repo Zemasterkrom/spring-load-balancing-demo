@@ -21,9 +21,10 @@ services:
     container_name: vglconfig
     environment:
       - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
-      - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-master}
+      - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-}
     volumes:
       - ./vglconfig/src/main/resources/application.properties:/usr/vglconfig/application.properties
+      - ./vglconfig/server/docker/config:/usr/vglconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 
@@ -40,8 +41,10 @@ services:
       - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
       - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
       - API_HOSTNAME=${API_HOSTNAME:-}
+      - CONTAINER_NAME_ID=vglservice # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
     volumes:
       - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
+      - ./vglservice/server/docker/config/vglservice:/usr/vglservice/config/vglservice # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${API_SERVER_PORT}:8080
     depends_on:
@@ -63,10 +66,12 @@ services:
       - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
       - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
       - API_HOSTNAME=${API_TWO_HOSTNAME:-}
+      - CONTAINER_NAME_ID=vglservice_two # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
     ports:
       - ${API_TWO_SERVER_PORT}:8080
     volumes:
       - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
+      - ./vglservice/server/docker/config/vglservice_two:/usr/vglservice/config/vglservice_two # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     depends_on:
       - vglconfig
       - vgldatabase
@@ -101,6 +106,7 @@ services:
       - ${LOADBALANCER_SERVER_PORT}:10000
     volumes:
       - ./vglloadbalancer/src/main/resources/application.properties:/usr/vglloadbalancer/application.properties
+      - ./vglloadbalancer/server/docker/config:/usr/vglloadbalancer/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     depends_on:
       - vglconfig
       - vgldiscovery

@@ -11,6 +11,7 @@ WORKDIR /usr/vglconfig
 ENV GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
 ENV GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH}
 COPY --from=builder /usr/vglconfig/target/*.jar app.jar
+COPY ./server/docker/scripts/*.sh ./
 EXPOSE 8888
 
-ENTRYPOINT java -Dspring.config.location=file:/usr/vglconfig/application.properties -XX:TieredStopAtLevel=1 -DGIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY} -DGIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH} -jar /usr/vglconfig/app.jar
+ENTRYPOINT ["/usr/vglconfig/serve.sh"]
