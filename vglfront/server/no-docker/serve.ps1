@@ -165,6 +165,14 @@ function Read-EnvironmentFile {
     return $keys | Get-Unique
 }
 
+function Invoke-ExitScript {
+    Param(
+        [Parameter(Position = 0, Mandatory = $false)] [Byte] $ExitCode = 0
+    )
+
+    exit $ExitCode
+}
+
 <#
     .SYNOPSIS
         Stop a process tree.
@@ -177,7 +185,7 @@ function Read-EnvironmentFile {
 #>
 function Stop-ProcessTree {
     Param(
-        [Parameter(Mandatory = $true)] [System.Diagnostics.Process] $ParentProcess
+        [System.Diagnostics.Process] $ParentProcess
     )
 
     function Stop-NestedProcessTree {
@@ -185,20 +193,16 @@ function Stop-ProcessTree {
             [Parameter(Mandatory = $true)] [Microsoft.Management.Infrastructure.CimInstance] $ChildProcess
         )
 
-        $NestedTerminationSuccess = $false
+        $TerminatedProcesses = @()
         $NestedProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ChildProcess.ProcessId )'"
-
-        if (-not($NestedProcesses.Length)) {
-            $NestedTerminationSuccess = $true
-        }
-
         $NestedProcesses | ForEach-Object {
-            $NestedTerminationSuccess = Stop-NestedProcessTree -ChildProcess $_
+            $TerminatedProcesses += Stop-NestedProcessTree -ChildProcess $_
         }
 
         try {
             Write-Information "--> Stopping the process with PID $( $ChildProcess.ProcessId )"
             $ChildProcess | Invoke-CimMethod -MethodName Terminate -ErrorAction Stop
+            $TerminationSucceeded = $true
         } catch [Microsoft.Management.Infrastructure.CimException] {
             $TerminationSucceeded = if ($_.Exception.ErrorCode -eq 0x80041002) {
                 $true # Process is already dead
@@ -208,33 +212,49 @@ function Stop-ProcessTree {
         } catch {
             $TerminationSucceeded = $false
         }
-        $TerminationSucceeded = $?
 
         if (-not($TerminationSucceeded)) {
-            Write-Information "--> Failed to stop the process with PID $( $ChildProcess.ProcessId ) : $($ChildProcess.Name)"
+            Write-Error "--> Failed to stop the process with PID $( $ChildProcess.ProcessId ) : $($ChildProcess.Name)" -ErrorAction Continue
         }
 
-        return $NestedTerminationSuccess -and $TerminationSucceeded
+        return @{
+            ProcessId = $ChildProcess.ProcessId
+            Terminated = $TerminationSucceeded
+        }
     }
 
-    $NestedTerminationSuccess = $false
-    $NestedProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'"
+    $TerminatedProcesses = @()
 
-    if (-not($NestedProcesses.Length)) {
-        $NestedTerminationSuccess = $true
+    if ($ParentProcess) {
+        $TerminationSucceeded = $true
+        $NestedProcesses = Get-CimInstance Win32_Process -Filter "ParentProcessId = '$( $ParentProcess.Id )'"
+        $NestedProcesses | ForEach-Object {
+            $TerminatedProcesses += Stop-NestedProcessTree -ChildProcess $_
+        }
+    
+        Write-Information "--> Stopping the process with PID $( $ParentProcess.Id )"
+    
+        try {
+            $ParentProcess | Stop-Process -Force -ErrorAction Stop
+        } catch {
+            Write-Error "--> Failed to stop the process with PID $( $ParentProcess.Id )" -ErrorAction Continue
+            $TerminationSucceeded = $false
+        }
+    
+        $TerminatedProcesses += @{
+            Process = $ParentProcess.Id
+            Terminated = $TerminationSucceeded
+        }
+    
+        $TerminatedProcesses | Where-Object {
+            if (-not($_.Terminated)) {
+                Write-Error "--> Failed to stop the process with PID $( $ParentProcess.Id )" -ErrorAction Continue
+                return $TerminatedProcesses
+            }
+        }
     }
 
-    $NestedProcesses | ForEach-Object {
-        $NestedTerminationSuccess = Stop-NestedProcessTree -ChildProcess $_
-    }
-
-    Write-Information "--> Stopping the process with PID $( $ParentProcess.Id )"
-    $ParentProcess | Stop-Process -Force -ErrorAction SilentlyContinue
-
-    if (-not($NestedTerminationSuccess) -or -not($?)) {
-        Write-Information "--> Failed to stop the process with PID $( $ParentProcess.Id )"
-        throw "--> Failed to stop the process with PID $( $ParentProcess.Id )"
-    }
+    return $TerminatedProcesses
 }
 
 <#
@@ -250,43 +270,50 @@ function Stop-ProcessTree {
 #>
 function Cleanup {
     Param(
+        [Int] $ExitCode = 130,
         [Switch] $ErrorDetected
     )
 
     if (-not($global:CleanupCompleted)) {
-        $ErrorCode = 0
-
         # Stop the process if CTRL-C is triggered manually and the process has not already exited
-        if ($process -and (-not($process.HasExited))) {
-            Stop-ProcessTree -ParentProcess $process -ErrorAction SilentlyContinue
-    
-            if (-not($?)) {
+        Stop-ProcessTree -ParentProcess $Process -ErrorAction SilentlyContinue | ForEach-Object {
+            if (-not($_.Terminated)) {
                 Write-Error "Failed to stop the front service" -ErrorAction Continue
-                $ErrorCode = 2
+                $ExitCode = 4
             }
         }
     
         # Remove the line concerning the temporary runner file
-        Set-Content -Path .env -Value (Get-Content -Path .env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
-    
-        if (-not($?)) {
+        try {
+            Set-Content -Path .env -Value (Get-Content -Path .env | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch)
+        } catch {
             Write-Warning "Failed to remove the TMP_RUNNER_FILE key from the .env environment file"
-            $ErrorCode = 3
+            $ExitCode = 5
         }
     
         # Remove temporary JavaScript environment file to avoid conflicts with Docker
         if (Test-Path src\assets\environment.js -ErrorAction SilentlyContinue) {
             Write-Information "Removing temporary JavaScript file src\assets\environment.js"
-            Remove-Item src\assets\environment.js -ErrorAction SilentlyContinue
+
+            try {
+                Remove-Item src\assets\environment.js
+            } catch {
+                Write-Warning "Failed to remove the src\assets\environment.js temporary JavaScript environment file"
+                $ExitCode = 6
+            }
         }
     
-        if (-not($?)) {
-            Write-Warning "Failed to remove the src\assets\environment.js temporary JavaScript environment file"
-            $ErrorCode = 4
+        # Remove temporary runner files in case they were not deleted because of an unknown system error
+        if (Test-Path "$env:TEMP\$env:TMP_RUNNER_FILE" -ErrorAction SilentlyContinue) {
+            Remove-Item "$env:TEMP\$env:TMP_RUNNER_FILE" -ErrorAction SilentlyContinue
         }
-    
+
+        if (Test-Path "$env:TEMP\$($env:TMP_RUNNER_FILE)_2" -ErrorAction SilentlyContinue) {
+            Remove-Item "$env:TEMP\$($env:TMP_RUNNER_FILE)_2" -ErrorAction SilentlyContinue
+        }
+
         # Remove environment variables
-        foreach ($Key in $environmentVariables) {
+        foreach ($Key in $EnvironmentVariables) {
             if (Test-Path env:\"$Key" | Out-Null) {
                 Write-Information "Removing environment variable $key"
                 Remove-Item env:\"$key" -ErrorAction SilentlyContinue
@@ -294,56 +321,87 @@ function Cleanup {
         }
 
         $global:CleanupCompleted = $true
-    
+        Switch-ToInitialLocation
+        Invoke-ExitScript $ExitCode
     }
 }
 
-try {
-    # Mandatory and default environment variables
-    $environmentVariables = $( "FRONT_SERVER_PORT", "API_URL" )
-
-    # Read environment variables
-    $env:FRONT_SERVER_PORT = 4200
-    $env:API_URL = "http://localhost:10000"
-
-    if (-not(Test-Path .env -PathType Leaf)) {
-        New-Item -Path .env -ItemType File -Force > $null
+function Switch-ToContextLocation {
+    if (-not($global:InitialLocation)) {
+        $global:InitialLocation = $PWD
     }
 
-    Read-EnvironmentFile .env | ForEach-Object {
-        $environmentVariables += $_
-    }
+    Set-Location "$PSScriptRoot\..\.."
+}
+
+function Switch-ToInitialLocation {
+    Set-Location $global:InitialLocation
+}
+
+function Start-FrontServer {
+    $EncodedPort = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($env:FRONT_SERVER_PORT))
+    $Process = Start-Process -NoNewWindow powershell -ArgumentList "-Command", "`$DecodedPort = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$EncodedPort')); ng serve --port `$DecodedPort" -PassThru -ErrorAction Continue
 
     if ($env:TMP_RUNNER_FILE) {
-        $tmpRunnerFileCheckEnabled = $true
+        New-Item -Type File "$env:TEMP\$( $env:TMP_RUNNER_FILE )" -ErrorAction SilentlyContinue > $null
     }
 
-    # Initialize the browser environment
-    node "server\FileEnvironmentConfigurator.js" "src\assets\environment.js" @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = '@JSVALUE@';" url "$env:API_URL" http://localhost:10000
+    return $Process
+}
 
-    # Serve the front
-    $encodedPort = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($env:FRONT_SERVER_PORT))
-    $process = Start-Process -NoNewWindow powershell -ArgumentList "-Command", "`$encodedPort = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedPort')); ng serve --port `$encodedPort" -PassThru -ErrorAction Continue;
-    New-Item -Type File "$env:TEMP\$( $env:TMP_RUNNER_FILE )" -ErrorAction SilentlyContinue > $null
+function Start-Server {
+    try {
+        # Sets the location to the front project root. Useful if called from another directory.
+        Switch-ToContextLocation
 
-    # Check the existence of the temporary runner file every second and terminate the front service if it has been deleted.
-    if ($tmpRunnerFileCheckEnabled) {
-        while ($true) {
-            if ($process.HasExited -or (-not(Test-Path -Type Leaf -Path "$env:TEMP\$( $env:TMP_RUNNER_FILE )"))) {
-                break
-            }
-
-            Start-Sleep -Seconds 1
+        # Mandatory and default environment variables
+        $EnvironmentVariables = $( "FRONT_SERVER_PORT", "API_URL" )
+    
+        # Read environment variables
+        $env:FRONT_SERVER_PORT = 4200
+        $env:API_URL = "http://localhost:10000"
+    
+        if (-not(Test-Path .env -PathType Leaf)) {
+            New-Item -Path .env -ItemType File -Force > $null
         }
-    } else {
-        $process | Wait-Process
-    }
-} catch {
-    Write-Error $_.Exception.Message -ErrorAction Continue
+    
+        Read-EnvironmentFile .env | ForEach-Object {
+            $EnvironmentVariables += $_
+        }
+    
+        if ($env:TMP_RUNNER_FILE) {
+            $TmpRunnerFileCheckEnabled = $true
+        }
+    
+        # Initialize the browser environment
+        node server\FileEnvironmentConfigurator.js src\assets\environment.js utf-8 @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = '@JSVALUE@';" url $(if (-not([String]::IsNullOrWhiteSpace($env:API_URL))) { $env:API_URL } else { "http://localhost:10000" })
 
-    # Fatal error detected : stop the front process, clean up the files to restore a healthy state, and remove environment variables
-    Cleanup -ErrorDetected
-} finally {
-    # Stop the front process, clean up the files, remove environment variables
-    Cleanup
+        # Serve the front
+        $Process = Start-FrontServer
+    
+        # Check the existence of the temporary runner file every second and terminate the front service if it has been deleted.
+        if ($TmpRunnerFileCheckEnabled) {
+            while ($true) {
+                if ($Process.HasExited -or (-not(Test-Path -Type Leaf -Path "$env:TEMP\$( $env:TMP_RUNNER_FILE )"))) {
+                    break
+                }
+    
+                Start-Sleep -Seconds 1
+            }
+        } else {
+            $Process | Wait-Process
+        }
+    } catch {
+        Write-Error $_.Exception.Message -ErrorAction Continue
+    
+        # Fatal error detected : stop the front process, clean up the files to restore a healthy state, and remove environment variables
+        Cleanup -ExitCode 3 -ErrorDetected
+    } finally {
+        # Stop the front process, clean up the files, remove environment variables
+        Cleanup -ExitCode 130
+    }
+}
+
+if (-not($env:LOAD_CORE_ONLY)) {
+    Start-Server
 }

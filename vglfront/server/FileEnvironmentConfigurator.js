@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 /**
- * Copyright 2023 Zemasterkrom
+ * Copyright 2023 Zemasterkrom (Raphaël KIMM)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
@@ -10,19 +10,56 @@ const fs = require("fs");
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+class FileError extends Error {  
+  constructor (message) {
+    super(message)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+class IncorrectFileTypeError extends FileError {  
+  constructor (message) {
+    super(message)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+class FileWriteError extends FileError {  
+  constructor (message) {
+    super(message)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+class FileReadError extends FileError {  
+  constructor (message) {
+    super(message)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
 /**
  * Utility class for creating environment files, similarly to Java with environment variables.
  *
  * In a dockerized or automated environment, this class may be of increased interest if a JavaScript application must
  * have access to environment variables when launching the application, which could be loaded from the environment file.
  *
- * Example : node FileEnvironmentConfigurator.js src/assets/environment.js %JSKEY% %JSVALUE% "window['environment']['%JSKEY%'] = %JSVALUE%;" testOne 0 testTwo 1
+ * Example : node FileEnvironmentConfigurator.js test.js utf-8 @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = @JSVALUE@;" valueOne 0 valueTwo 1
  */
 class FileEnvironmentConfigurator {
   /**
-   * Configuration file.
+   * Configuration filename.
    */
-  #file = null;
+  #environmentFilePath = null;
+
+  /*
+   * Environment file encoding.
+   */
+  #environmentFileEncoding = "utf8"
 
   /**
    * Key placeholder. This placeholder will be used to reference the current key in the environment template.
@@ -47,53 +84,48 @@ class FileEnvironmentConfigurator {
   /**
    * Constructor of FileEnvironmentConfigurator
    *
-   * @param f File to load for the environment configuration
+   * @param fp Environment file path
+   * @param enc Environment file encoding. Default is utf8.
    * @param k Key placeholder
    * @param v Value placeholder
    * @param et Environment template
+   * 
+   * @throws {TypeError} Parameter can't be empty
+   * @throws {FileError} File status does not allow writing
    */
-  constructor(f, k, v, et) {
-    if (!f || !k || !v || !et) {
-      console.error("Can't pass null objects");
-      process.exit(1);
+  constructor(fp, enc, k, v, et) {
+    if ((!fp && fp !== "") || (!k && k !== "") || (!v && v != "") || (!et && et !== "")) {
+      throw new TypeError("Can't pass null objects")
     }
 
-    if (k.length === 0) {
-      console.error("The key placeholder can't be empty");
-      process.exit(1);
+    if (/^\s*$/.test(fp)) {
+      throw new TypeError("The environment file path can't be empty")
     }
 
-    if (v.length === 0) {
-      console.error("The value placeholder can't be empty");
-      process.exit(1);
+    if (/^\s*$/.test(k)) {
+      throw new TypeError("The key placeholder can't be empty")
     }
 
-    if (et.length === 0) {
-      console.error("The environment template can't be empty");
-      process.exit(1);
+    if (/^\s*$/.test(v)) {
+      throw new TypeError("The value placeholder can't be empty");
     }
 
-    try {
-      if (fs.existsSync(f)) {
-        const stat = fs.statSync(f);
+    if (/^\s*$/.test(et)) {
+      throw new TypeError("The environment template can't be empty");
+    }
 
-        if (stat.isDirectory()) {
-          console.error(`File ${f} is a directory`);
-          process.exit(1);
-        } else if (!fs.constants.W_OK & stat.mode) {
-          console.error(`Can't write to ${f}`);
-          process.exit(1);
-        } else if (!fs.constants.R_OK & stat.mode) {
-          console.error(`Can't read ${f}`);
-          process.exit(1);
-        }
+    if (fs.existsSync(fp)) {
+      const stat = fs.statSync(fp);
+
+      if (stat.isDirectory()) {
+        throw new IncorrectFileTypeError(`File ${fp} is a directory`);
+      } else if (!fs.constants.W_OK & stat.mode) {
+        throw new FileWriteError(`Can't write to ${fp}`);
       }
-    } catch (e) {
-      console.error(e.message);
-      process.exit(1);
     }
 
-    this.#file = f;
+    this.#environmentFilePath = fp;
+    this.#environmentFileEncoding = enc && /^.+$/.test(enc) ? enc : "utf8";
     this.#keyPlaceholder = k;
     this.#valuePlaceholder = v;
     this.#environmentTemplate = et;
@@ -104,9 +136,15 @@ class FileEnvironmentConfigurator {
    *
    * @param key Key currently being processed
    * @param value Value currently being processed
+   * 
+   * @throws {TypeError} Key can't be empty
    */
   setEnvironmentVariable(key, value) {
     if (this.#content.length !== 0) this.#content += "\n";
+
+    if (!key || /^\s*$/.test(key)) {
+      throw new TypeError(`Keys can't be empty. Concerned value : ${value}`)
+    }
 
     this.#content += this.#environmentTemplate
       .replace(this.#keyPlaceholder, key)
@@ -115,35 +153,67 @@ class FileEnvironmentConfigurator {
 
   /**
     * Save the created environment file.
-    *
-    * @return true if success, false otherwise
     */
   async save() {
-    try {
-      await fs.promises.writeFile(this.#file, this.#content, 'utf8');
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-    return true;
+    await fs.promises.writeFile(this.#environmentFilePath, this.#content, {
+      encoding: this.#environmentFileEncoding
+    });
+  }
+
+  get filename() {
+    return this.#environmentFilePath;
+  }
+
+  get environmentFileEncoding() {
+    return this.#environmentFileEncoding;
+  }
+
+  get keyPlaceholder() {
+    return this.#keyPlaceholder;
+  }
+
+  get valuePlaceholder() {
+    return this.#valuePlaceholder;
+  }
+
+  get environmentTemplate() {
+    return this.#environmentTemplate;
   }
 }
 
 async function main(args) {
-  if (args.length < 4) {
-    console.error('Usage: node FileEnvironmentConfigurator.js <Path to the environment file> <Key placeholder> <Value placeholder> <Environment template> <First key> <First value> ...');
+  try {
+    if (args.length < 6) {
+      throw new TypeError('Usage: node FileEnvironmentConfigurator.js <Path to the environment file> <Environment file encoding> <Key placeholder> <Value placeholder> <Environment template> <First key> <First value> ...');
+    }
+  
+    const ec = new FileEnvironmentConfigurator(args[0], args[1], args[2], args[3], args[4]);
+  
+    for (let i = 5; i < args.length; i += 2) {
+      ec.setEnvironmentVariable(args[i], args[i + 1] ?? "");
+    }
+  
+    await ec.save();
+  } catch (e) {
+    if (e.code === "EPERM" || e.code === "EBUSY" || e.code === "EACCES") {
+      console.error(`Can't write to ${args[0]}`);
+      process.exit(71);
+    } else {
+      console.error(e.message);
+    }
+
+    switch (e.constructor.name) {
+      case "TypeError":
+        process.exit(2);
+      case "SystemError":
+      case "IncorrectFileTypeError":
+      case "FileWriteError":
+      case "FileReadError":
+        process.exit(71);
+    }
+
     process.exit(1);
   }
-
-  const ec = new FileEnvironmentConfigurator(args[0], args[1], args[2], args[3]);
-
-  for (let i = 4; i < args.length; i += 2) {
-    if (i + 1 < args.length) {
-      ec.setEnvironmentVariable(args[i], args[i + 1]);
-    }
-  }
-
-  await ec.save();
 }
 
 main(process.argv.slice(2));

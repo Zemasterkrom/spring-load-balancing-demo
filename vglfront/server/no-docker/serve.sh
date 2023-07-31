@@ -1,5 +1,48 @@
 #!/usr/bin/env sh
-set -e
+
+test_shell_path_detection_ability() {
+  [ "${1%run.sh}" != "$1" ]
+}
+
+# Change to the script directory if not in the same directory as the script
+cd_to_script_dir() {
+  if [ -z "${changed_to_base_dir}" ]; then
+    changed_to_base_dir=false
+  fi
+
+  if ! ${changed_to_base_dir}; then
+    if [ -n "${context_dir}" ]; then
+      cd_dir="${context_dir}"
+    elif test_shell_path_detection_ability "$0"; then
+      cd_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
+    fi
+
+    if [ -n "${cd_dir}" ]; then
+      if ! test -d "${cd_dir}"; then
+        echo "${cd_dir} is not a directory. Unable to continue." >&2
+        return 126
+      fi
+
+      if ! cd "${cd_dir}" >/dev/null 2>&1; then
+        echo "Unable to switch to the ${cd_dir} base directory of the script. Unable to continue." >&2
+        return 126
+      fi
+    fi
+
+    script_directory="$(pwd)"
+  fi
+
+  if [ -n "${script_directory}" ] && [ "$(pwd)" != "${script_directory}" ]; then
+    if ! cd "${script_directory}" >/dev/null 2>&1; then
+      echo "Unable to switch to the ${script_directory} base directory of the script. Unable to continue." >&2
+      return 126
+    fi
+  fi
+
+  if [ -z "${changed_to_base_dir}" ] || [ "${changed_to_base_dir}" = "false" ]; then
+    changed_to_base_dir=true
+  fi
+}
 
 # Reads an environment file and sets the values in the current environment.
 # Escape characters in environment files using the \ character.
@@ -298,7 +341,7 @@ wait_for_process_to_start() {
     sleep 1
     safe_wait_for_process_to_start "$1" "$2" "$3" "$4" "$(date +%s 2>/dev/null)"
   }
-
+  
   if [ -z "$1" ] || ! expr "$1" : "^[a-zA-Z][a-zA-Z0-9_]*$" >/dev/null 2>&1 || [ -z "$2" ] || ! expr "$2" : "^[0-9]\+$" >/dev/null 2>&1 || [ -z "$3" ] || ! expr "$3" : "^[0-9]\+$" >/dev/null 2>&1; then
     return 2
   fi
@@ -371,7 +414,7 @@ kill_process() {
 
   if [ "$6" = "true" ]; then
     # Kill the process gracefully and wait for it to stop or kill it by force if it cannot be stopped
-    echo "Stopping $1 with PID ${2#-}" >&2
+    echo "Stopping $1 with PID ${2#-}"
 
     if ! kill -15 "$2" && ps -p "$2" >/dev/null 2>&1; then
       echo "--> Standard stop failed : force killing $1 with PID ${2#-}" >&2
@@ -478,7 +521,7 @@ cleanup() {
     while ! queue_exit; do true; done
 
     # Remove temporary JavaScript environment file to avoid conflicts with Docker
-    if [ -f src/assets/environment.js ]; then
+    if test -f src/assets/environment.js; then
       echo "Removing temporary JavaScript file src/assets/environment.js"
 
       if ! rm src/assets/environment.js 2>/dev/null; then
@@ -488,22 +531,23 @@ cleanup() {
     fi
 
     # Remove the temporary runner files
-    if [ -f "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}" ]; then
+    if test -f "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}"; then
       rm "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}" 2>/dev/null || exit_code=9
     fi
 
-    if [ -f "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}_2" ]; then
+    if test -f "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}_2"; then
       rm "${TMPDIR:-/tmp}/${TMP_RUNNER_FILE}_2" 2>/dev/null || exit_code=9
     fi
 
     # Stop the Angular process if started in background gracefully and force kill it if it cannot be stopped
     if [ -n "${NgAngular_pid}" ]; then
       if [ "${cleanup_count}" -le 1 ]; then
-        kill_process "${NgAngular_pid}" "${NgAngular_stime}" 20 8 true || exit_code=$?
+        kill_process "VglFront" "${NgAngular_pid}" "${NgAngular_stime}" 20 8 true || exit_code=$?
       else
-        kill_process "${NgAngular_pid}" "${NgAngular_stime}" 20 8 false || exit_code=$?
+        kill_process "VglFront" "${NgAngular_pid}" "${NgAngular_stime}" 20 8 false || exit_code=$?
       fi
     fi
+
 
     if is_waiting_for_cleanup "$3"; then
       cleanup "${queued_signal_code}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
@@ -521,7 +565,11 @@ cleanup() {
     cleanup_executed=true
   fi
 
-  exit "${exit_code}"
+  exit_script "${exit_code}"
+}
+
+exit_script() {
+  exit "${1:-0}"
 }
 
 ##################
@@ -530,25 +578,35 @@ cleanup() {
 
 # Read environment variables and configure the browser environment
 configure_environment_variables() {
+  cd_to_script_dir
+
   # Read environment variables
   touch .env
   read_environment_file .env
 
   # Initialize the browser environment
-  node server/FileEnvironmentConfigurator.js src/assets/environment.js @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = '@JSVALUE@';" url "${API_URL:-http://localhost:10000}" http://localhost:10000
+  node server/FileEnvironmentConfigurator.js src/assets/environment.js utf-8 @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = '@JSVALUE@';" url "${API_URL:-http://localhost:10000}" http://localhost:10000
+}
+
+start_ng_process() {
+  cd_to_script_dir
+  ng "$@" &
 }
 
 # Serve the front
 # shellcheck disable=SC2154
 start() {
   # Start the Angular process
-  block_exit || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}" || exit $?
-  ng serve --port "${FRONT_SERVER_PORT:-4200}" &
+  block_exit || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}" || exit_script $?
+  start_ng_process serve --port "${FRONT_SERVER_PORT:-4200}"
   NgAngular_pid=$!
 
   # Wait until the Angular process is started
   while ! queue_exit; do true; done
-  wait_for_process_to_start "NgAngular" "${ng_pid}" 5 || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+  wait_for_process_to_start "NgAngular" "${NgAngular_pid}" 5 || {
+    cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+    return "${exit_code}"
+  }
 
   # If required, create the temporary runner file to indicate that the Angular application is ready to be stopped
   if [ -n "${TMP_RUNNER_FILE}" ]; then
@@ -560,12 +618,18 @@ start() {
     # A pending user cleanup signal was triggered
     if is_waiting_for_cleanup; then
       cleanup "${queued_signal_code}" "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      break
     fi
 
-    check_process_existence "${NgAngular_pid}" "${NgAngular_stime}" || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+    check_process_existence "${NgAngular_pid}" "${NgAngular_stime}" || {
+      cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      break
+    }
 
     sleep 1
   done
+
+  return "${exit_code}"
 }
 
 ##################
@@ -584,7 +648,10 @@ queue_exit() {
   set +e
   trap 'cleanup 130 "${QUEUED_USER_CLEANUP}"' INT
   trap 'cleanup 143 "${QUEUED_USER_CLEANUP}"' TERM
-  stty "${stty_settings}" 2>/dev/null || true
+  
+  if [ -n "${stty_settings}" ]; then
+    stty "${stty_settings}" 2>/dev/null || true
+  fi
 }
 
 # Allow the script to exit again
@@ -607,6 +674,7 @@ init_shell_params() {
 }
 
 # Run the front
+# shellcheck disable=SC2154
 main() {
   # Graceful cleanup flags
   cleanup_executed=false
@@ -619,7 +687,9 @@ main() {
   QUEUED_USER_CLEANUP=3
 
   # Execute
-  run
+  if [ "${load_core_only}" != "true" ]; then
+    run
+  fi
 }
 
 run() {

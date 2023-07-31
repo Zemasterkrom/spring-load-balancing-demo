@@ -587,7 +587,7 @@ class EnvironmentContext {
     [ValidateNotNull()] [boolean] $Start
 
     # Indicates if the demo should be runned or only sourced
-    [ValidateNotNull()] [Boolean] $SourceOnly
+    [ValidateNotNull()] [Boolean] $LoadCoreOnly
 
     # Path to the environment file
     [ValidateNotNullOrEmpty()] [String] $EnvironmentFilePath
@@ -667,8 +667,8 @@ class EnvironmentContext {
         $this.Start = $Start
     }
 
-    EnableSourceOnlyMode([Boolean] $SourceOnly) {
-        $this.SourceOnly = $SourceOnly
+    EnableLoadCoreOnlyMode([Boolean] $LoadCoreOnly) {
+        $this.LoadCoreOnly = $LoadCoreOnly
     }
 
     SetEnvironmentFile([String] $FilePath, [String] $Encoding) {
@@ -918,6 +918,10 @@ class BackgroundTask {
             $this.TaskStopInfo.KillTimeout = [BackgroundTask]::KillTimeout
         }
 
+        if ($null -eq $this.TaskStopInfo.GracefulStopScriptBlock) {
+            $this.TaskStopInfo.GracefulStopScriptBlock = {}
+        }
+
         $this.PreCheckSetup()
         $this.CheckTaskStartInfo()
         $this.CheckBasicTaskStopInfo()
@@ -948,6 +952,10 @@ class BackgroundTask {
 
         if (($this.TaskStopInfo.KillTimeout -isnot [Int]) -or ($this.TaskStopInfo.KillTimeout -lt 0)) {
             throw [InvalidOperationException]::new("Invalid force kill timeout. Force kill timeout cannot be negative.")
+        }
+
+        if ($this.TaskStopInfo.GracefulStopScriptBlock -isnot [ScriptBlock]) {
+            throw [InvalidOperationException]::new("Invalid graceful stop script block. The graceful stop script block must contain valid PowerShell instructions to gracefully stop the task.")
         }
     }
 
@@ -1048,13 +1056,10 @@ class BackgroundTask {
 
     <#
         .DESCRIPTION
-            Executes a fallback stop shutdown in the event that the standard shutdown logic was not executed correctly
-
-        .OUTPUTS
-            Number representing the status of the fallback stop execution
+            Executes a graceful stop script block to handle and attempt to resolve system error cases
     #>
-    hidden [Int] GracefulStop() {
-        return [BackgroundTask]::GracefulStopSuccessful
+    hidden [Void] GracefulStop() {
+        & $this.TaskStopInfo.GracefulStopScriptBlock -Task $this
     }
 
     <#
@@ -1884,7 +1889,7 @@ class Runner {
             --no-start : don't start the demo
             --no-build : don't build the packages when starting the demo. If some packages are missing, the build will be automatically enabled.
             --no-load-balancing : because of the demo intent, the load balancing is enabled by default
-            --source-only : don't run the demo at all. Useful for testing.
+            --load-core-only : load the core functions instead of executing the script. Useful for testing.
     #>
     static [Void] Main([String[]] $Options) {
         try {
@@ -1905,8 +1910,8 @@ class Runner {
                         [Runner]::EnvironmentContext.EnableLoadBalancing($false)
                         [Runner]::EnvironmentContext.SetEnvironmentFile("no-load-balancing.env", "UTF8")
                     }
-                    --source-only {
-                        [Runner]::EnvironmentContext.EnableSourceOnlyMode($true)
+                    --load-core-only {
+                        [Runner]::EnvironmentContext.EnableLoadCoreOnlyMode($true)
                     }
                 }
             }
@@ -1918,7 +1923,7 @@ class Runner {
         }
 
         # Execute if not sourced
-        if (-not([Runner]::EnvironmentContext.SourceOnly)) {
+        if (-not([Runner]::EnvironmentContext.LoadCoreOnly)) {
             if ((-not([Runner]::EnvironmentContext.Start))-and (-not([Runner]::EnvironmentContext.Build))) {
                 break
             }
@@ -2156,6 +2161,25 @@ class Runner {
                         ScriptBlock = {
                             Set-Location "$using:PWD\vglfront"
                             Write-Output n | npm run start 2> $null
+                        }
+                    }, @{
+                        GracefulStopScriptBlock = {
+                            Param($Task)
+
+                            # Remove the line concerning the temporary runner file
+                            Set-Content -Path vglfront\.env -Value (Get-Content -Path vglfront\.env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
+                    
+                            # Remove temporary JavaScript environment file to avoid conflicts with Docker
+                            if (Test-Path vglfront\src\assets\environment.js -ErrorAction SilentlyContinue) {
+                                Write-Information "Removing temporary JavaScript file src\assets\environment.js"
+                                Remove-Item vglfront\src\assets\environment.js -ErrorAction SilentlyContinue
+                            }
+                    
+                            if ($Task.TemporaryFileCheckEnabled) {
+                                if (Test-Path "$env:TEMP\$( $Task.TemporaryFileName )" -ErrorAction SilentlyContinue) {
+                                    Remove-Item "$env:TEMP\$( $Task.TemporaryFileName )" -ErrorAction SilentlyContinue
+                                }
+                            }
                         }
                     }, "VglFront")
 

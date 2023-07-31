@@ -24,7 +24,7 @@ services:
       - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-}
     volumes:
       - ./vglconfig/src/main/resources/application.properties:/usr/vglconfig/application.properties
-      - ./vglconfig/server/docker/config:/usr/vglconfig/config # Necessary for Docker Desktop as host related variables are not saved inside containers : they are determined at runtime when executing the runner script
+      - ./vglconfig/server/docker/config:/usr/vglconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 

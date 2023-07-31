@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 test_shell_path_detection_ability() {
-  [ "${1%run.sh}" != "$1" ]
+  [ "${0%$1}" != "$0" ]
 }
 
 # Change to the script directory if not in the same directory as the script
@@ -13,7 +13,7 @@ cd_to_script_dir() {
   if ! ${changed_to_base_dir}; then
     if [ -n "${context_dir}" ]; then
       cd_dir="${context_dir}"
-    elif test_shell_path_detection_ability "$0"; then
+    elif test_shell_path_detection_ability "$1"; then
       cd_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
     fi
 
@@ -29,7 +29,7 @@ cd_to_script_dir() {
       fi
     fi
 
-    if ! test -f run.sh; then
+    if ! test -f "$1"; then
       echo "Unable to find the base script in the changed ${cd_dir} directory. Unable to continue." >&2
       return 127
     fi
@@ -830,7 +830,7 @@ check_no_load_balancing_packages() {
 
 # Read environment variables and auto-configure some variables related to the Git / DNS environment
 configure_environment_variables() {
-  cd_to_script_dir || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+  cd_to_script_dir "run.sh" "spring-load-balancing-demo" || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
   if ${start}; then
     echo "Reading environment variables ..."
@@ -879,7 +879,7 @@ configure_environment_variables() {
 
 # Build demo packages
 build() {
-  cd_to_script_dir || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+  cd_to_script_dir "run.sh" "spring-load-balancing-demo" || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
   if [ "${environment}" -eq "${DOCKER_ENVIRONMENT}" ] && ${build}; then
     echo "Building packages and images ..."
@@ -986,7 +986,7 @@ start_npm_process() {
 # shellcheck disable=SC2016
 # shellcheck disable=SC2154
 start() {
-  cd_to_script_dir || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+  cd_to_script_dir "run.sh" "spring-load-balancing-demo" || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
   if ${start}; then
     start_error=0
@@ -1401,7 +1401,7 @@ init_shell_params() {
 # --no-start : don't start the demo
 # --no-build : don't build the packages when starting the demo. If some packages are missing, the build will be automatically enabled.
 # --no-load-balancing : because of the demo intent, the load balancing is enabled by default
-# --source-only : don't run the demo at all. Useful for testing.
+# --load-core-only : don't run the demo at all. Useful for testing.
 # shellcheck disable=SC2016
 main() {
   # Versions related flags
@@ -1424,8 +1424,8 @@ main() {
   start=true
   process_control_enabled=false
 
-  if [ "${source_only}" != "true" ] && [ "${source_only}" != "false" ]; then
-    source_only=false
+  if [ "${load_core_only}" != "true" ] && [ "${load_core_only}" != "false" ]; then
+    load_core_only=false
   fi
 
   # Graceful cleanup flags
@@ -1447,12 +1447,12 @@ main() {
     --no-start) start=false ;;
     --no-build) build=false ;;
     --no-load-balancing) mode=${NO_LOAD_BALANCING_MODE} ;;
-    --source-only) source_only=true ;;
+    --load-core-only) load_core_only=true ;;
     esac
   done
 
   # Execute if not sourced
-  if ! ${source_only}; then
+  if ! ${load_core_only}; then
     if ! ${build} && ! ${start}; then
       exit_script
     fi
