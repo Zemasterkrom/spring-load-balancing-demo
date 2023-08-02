@@ -12,4 +12,4 @@ ENV CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
 COPY --from=builder /usr/lddiscovery/target/*.jar app.jar
 EXPOSE 9999
 
-ENTRYPOINT java -Dspring.config.location=file:/usr/lddiscovery/application.properties -XX:TieredStopAtLevel=1 -DCONFIG_SERVER_URL=${CONFIG_SERVER_URL} -jar /usr/lddiscovery/app.jar
+ENTRYPOINT java -Dspring.config.location=file:/usr/lddiscovery/application.properties -XX:TieredStopAtLevel=1 -DCONFIG_SERVER_URL="${CONFIG_SERVER_URL}" -jar /usr/lddiscovery/app.jar

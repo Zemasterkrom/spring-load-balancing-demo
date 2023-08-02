@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 
+
 test_shell_path_detection_ability() {
   [ "${0%$1}" != "$0" ]
 }
@@ -92,7 +93,7 @@ random_number() {
   # The seed calculation is not POSIX-compliant.
   # However, checks are performed on the result with the POSIX expr command to verify that the generated seed is a number.
   # If it is not a number, a fallback is provided: wait a second for awk to generate a different seed from the previous one in a POSIX-compliant way. This ends up being POSIX-compliant.
-  # shellcheck disable=SC2039
+  # shellcheck disable=SC3028
   seed=$(od -An -N4 -tu4 </dev/urandom 2>/dev/null || date +%s%3N 2>/dev/null || echo ${RANDOM})
   seed="${seed# *}"
 
@@ -844,15 +845,10 @@ configure_environment_variables() {
     if read_environment_file "${environment_file}"; then
       echo "Environment auto-configuration ..."
 
-      if ! GIT_CONFIG_BRANCH="$(git rev-parse --abbrev-ref HEAD)"; then
-        GIT_CONFIG_BRANCH=master
-      fi
-
       if ! LOADBALANCER_HOSTNAME="$(hostname)"; then
         LOADBALANCER_HOSTNAME=localhost
       fi
 
-      export GIT_CONFIG_BRANCH
       export LOADBALANCER_HOSTNAME
       export API_HOSTNAME="${LOADBALANCER_HOSTNAME}"
       export API_TWO_HOSTNAME="${LOADBALANCER_HOSTNAME}"

@@ -19,12 +19,8 @@ services:
     image: ldconfig
     restart: unless-stopped
     container_name: ldconfig
-    environment:
-      - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
-      - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-}
     volumes:
-      - ./ldconfig/src/main/resources/application.properties:/usr/ldconfig/application.properties
-      - ./ldconfig/server/docker/config:/usr/ldconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldconfig/src/main/resources:/usr/ldconfig/resources
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 

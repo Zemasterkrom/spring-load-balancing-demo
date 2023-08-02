@@ -8,10 +8,8 @@ RUN mvn -f pom.xml -T 4 -DskipTests clean package
 FROM eclipse-temurin:17-jre
 
 WORKDIR /usr/ldconfig
-ENV GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
-ENV GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH}
 COPY --from=builder /usr/ldconfig/target/*.jar app.jar
 COPY ./server/docker/scripts/*.sh ./
 EXPOSE 8888
 
-ENTRYPOINT ["/usr/ldconfig/serve.sh"]
+ENTRYPOINT java -Dspring.config.location=file:/usr/ldconfig/resources/application.properties -XX:TieredStopAtLevel=1 -jar /usr/ldconfig/app.jar

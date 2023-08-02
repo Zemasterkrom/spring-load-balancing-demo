@@ -2006,12 +2006,6 @@ class Runner {
                 Write-Information "Environment auto-configuration ..."
 
                 try {
-                    $env:GIT_CONFIG_BRANCH = Invoke-And -ReturnObject git rev-parse --abbrev-ref HEAD
-                } catch {
-                    $env:GIT_CONFIG_BRANCH = "master"
-                }
-
-                try {
                     $env:LOADBALANCER_HOSTNAME = hostname
                 } catch {
                     $env:LOADBALANCER_HOSTNAME = "localhost"
@@ -2036,7 +2030,7 @@ class Runner {
                     Remove-Item env:\DB_PORT -ErrorAction SilentlyContinue
                 }
 
-                [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("GIT_CONFIG_BRANCH", "LOADBALANCER_HOSTNAME", "API_HOSTNAME", "API_TWO_HOSTNAME"))
+                [Runner]::EnvironmentContext.AddEnvironmentVariableKeys(@("LOADBALANCER_HOSTNAME", "API_HOSTNAME", "API_TWO_HOSTNAME"))
             }
         } catch [System.Management.Automation.CommandNotFoundException] {
             Write-Error $_.Exception.Message -ErrorAction Continue

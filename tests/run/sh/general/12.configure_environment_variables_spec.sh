@@ -19,7 +19,6 @@ Describe 'Configure environment variables'
             End
 
             setup_environment() {
-                export GIT_CONFIG_BRANCH=""
                 export LOADBALANCER_HOSTNAME=""
                 export API_HOSTNAME=""
                 export API_TWO_HOSTNAME=""
@@ -35,7 +34,6 @@ Describe 'Configure environment variables'
                 When call configure_environment_variables
                 The status should be success
                 The stderr should be blank
-                The variable GIT_CONFIG_BRANCH should not be blank
                 The variable LOADBALANCER_HOSTNAME should not be blank
                 The variable API_HOSTNAME should eq "${LOADBALANCER_HOSTNAME}"
                 The variable API_TWO_HOSTNAME should eq "${LOADBALANCER_HOSTNAME}"
@@ -105,7 +103,6 @@ Describe 'Configure environment variables'
                 End
 
                 setup_environment() {
-                    export GIT_CONFIG_BRANCH=""
                     export LOADBALANCER_HOSTNAME=""
                     export API_HOSTNAME=""
                     export API_TWO_HOSTNAME=""
@@ -197,7 +194,6 @@ Describe 'Configure environment variables'
             The status should be success
             The stdout should be present
             The stderr should be blank
-            The variable GIT_CONFIG_BRANCH should eq master
             The variable LOADBALANCER_HOSTNAME should eq localhost
             The variable API_HOSTNAME should eq "${LOADBALANCER_HOSTNAME}"
             The variable API_TWO_HOSTNAME should eq "${API_HOSTNAME}"

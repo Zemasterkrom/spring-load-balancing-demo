@@ -163,7 +163,6 @@ class MockedRunner: Runner {
                     @{ LoadBalancing = $false }
                 ) {
                     BeforeEach {
-                        $env:GIT_CONFIG_BRANCH = ""
                         $env:LOADBALANCER_HOSTNAME = ""
                         $env:API_HOSTNAME = ""
                         $env:API_TWO_HOSTNAME = ""
@@ -180,7 +179,6 @@ class MockedRunner: Runner {
     
                     It "auto-configures the environment variables with success : load balancing = <loadbalancing>" {
                         [Runner]::ConfigureEnvironmentVariables()
-                        $env:GIT_CONFIG_BRANCH | Should -Not -BeNullOrEmpty
                         $env:LOADBALANCER_HOSTNAME | Should -Not -BeNullOrEmpty
                         $env:API_HOSTNAME | Should -BeExactly $env:LOADBALANCER_HOSTNAME
                         $env:API_TWO_HOSTNAME | Should -BeExactly $env:LOADBALANCER_HOSTNAME
@@ -189,7 +187,6 @@ class MockedRunner: Runner {
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("DB_USERNAME") | Should -BeTrue
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("DB_PASSWORD") | Should -BeTrue
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("DB_PORT") | Should -BeTrue
-                        [Runner]::EnvironmentContext.EnvironmentVariables.Contains("GIT_CONFIG_BRANCH") | Should -BeTrue
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("LOADBALANCER_HOSTNAME") | Should -BeTrue
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("API_HOSTNAME") | Should -BeTrue
                         [Runner]::EnvironmentContext.EnvironmentVariables.Contains("API_TWO_HOSTNAME") | Should -BeTrue
@@ -319,7 +316,6 @@ class MockedRunner: Runner {
 
             It "configures the system-dependant properties using the system environment instead on relying on the environment file : load balancing = <loadbalancing>" {
                 [Runner]::ConfigureEnvironmentVariables()
-                $env:GIT_CONFIG_BRANCH | Should -BeExactly "master"
                 $env:LOADBALANCER_HOSTNAME | Should -BeExactly "localhost"
                 $env:API_HOSTNAME | Should -BeExactly $env:LOADBALANCER_HOSTNAME
                 $env:API_TWO_HOSTNAME | Should -BeExactly $env:LOADBALANCER_HOSTNAME
