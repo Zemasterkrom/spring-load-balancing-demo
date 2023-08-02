@@ -3,7 +3,7 @@
 	"name": "VGL API (Endpoint #2)",
 	"values": [
 		{
-			"key": "vglservice-url",
+			"key": "ldservice-url",
 			"value": "http://localhost:8081",
 			"type": "default",
 			"enabled": true

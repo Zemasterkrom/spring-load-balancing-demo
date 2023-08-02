@@ -814,18 +814,18 @@ check_file_existence() {
 
 # Checks if load-balancing related packages are build on the system
 check_load_balancing_packages() {
-  check_file_existence -f vglconfig/target/vglconfig.jar &&
-    check_file_existence -f vglservice/target/vglservice.jar &&
-    check_file_existence -d vglfront/node_modules &&
-    check_file_existence -f vgldiscovery/target/vgldiscovery.jar &&
-    check_file_existence -f vglloadbalancer/target/vglloadbalancer.jar
+  check_file_existence -f ldconfig/target/ldconfig.jar &&
+    check_file_existence -f ldservice/target/ldservice.jar &&
+    check_file_existence -d ldfront/node_modules &&
+    check_file_existence -f lddiscovery/target/lddiscovery.jar &&
+    check_file_existence -f ldloadbalancer/target/ldloadbalancer.jar
 }
 
 # Checks if load-balancing related packages are build on the system
 check_no_load_balancing_packages() {
-  check_file_existence -f vglconfig/target/vglconfig.jar &&
-    check_file_existence -f vglservice/target/vglservice.jar &&
-    check_file_existence -d vglfront/node_modules
+  check_file_existence -f ldconfig/target/ldconfig.jar &&
+    check_file_existence -f ldservice/target/ldservice.jar &&
+    check_file_existence -d ldfront/node_modules
 }
 
 # Read environment variables and auto-configure some variables related to the Git / DNS environment
@@ -904,15 +904,15 @@ build() {
 
     if ${build} && [ "${environment}" -eq "${SYSTEM_ENVIRONMENT}" ]; then
       echo "Building packages ..."
-      mvn clean package -T 3 -DskipTests -DfinalName=vglconfig -f vglconfig/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-      mvn clean package -T 3 -DskipTests -DfinalName=vglservice -f vglservice/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      mvn clean package -T 3 -DskipTests -DfinalName=ldconfig -f ldconfig/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      mvn clean package -T 3 -DskipTests -DfinalName=ldservice -f ldservice/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
 
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        mvn clean package -T 3 -DskipTests -DfinalName=vgldiscovery -f vgldiscovery/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
-        mvn clean package -T 3 -DskipTests -DfinalName=vglloadbalancer -f vglloadbalancer/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        mvn clean package -T 3 -DskipTests -DfinalName=lddiscovery -f lddiscovery/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+        mvn clean package -T 3 -DskipTests -DfinalName=ldloadbalancer -f ldloadbalancer/pom.xml || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
       fi
 
-      cd vglfront || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
+      cd ldfront || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
       npm install || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
       cd .. || cleanup $? "${AUTOMATED_CLEANUP}" "${cleanup_count}"
     fi
@@ -999,19 +999,19 @@ start() {
 
       # Start the services
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        project_name="vglloadbalancing-enabled" start_docker_compose_services up
+        project_name="ldloadbalancing-enabled" start_docker_compose_services up
       else
-        project_name="vglloadbalancing-disabled" start_docker_compose_services -f docker-compose-no-load-balancing.yml --env-file no-load-balancing.env up
+        project_name="ldloadbalancing-disabled" start_docker_compose_services -f docker-compose-no-load-balancing.yml --env-file no-load-balancing.env up
       fi
     else # System-dependent environment
       while ! queue_exit; do true; done
 
       # Configure the front service environment variables
-      echo "FRONT_SERVER_PORT=${FRONT_SERVER_PORT}" >vglfront/.env
-      echo "API_URL=${API_URL}" >>vglfront/.env
-      VglFront_tmp_runner_file="vglfront_$$_$(random_number 9999)"
-      echo "TMP_RUNNER_FILE=${VglFront_tmp_runner_file}" >>vglfront/.env
-      touch "${TMPDIR:-/tmp}/${VglFront_tmp_runner_file}" || true
+      echo "FRONT_SERVER_PORT=${FRONT_SERVER_PORT}" >ldfront/.env
+      echo "API_URL=${API_URL}" >>ldfront/.env
+      ldfront_tmp_runner_file="ldfront_$$_$(random_number 9999)"
+      echo "TMP_RUNNER_FILE=${ldfront_tmp_runner_file}" >>ldfront/.env
+      touch "${TMPDIR:-/tmp}/${ldfront_tmp_runner_file}" || true
 
       # Disable the cleanup function until all processes have started : register the signal to handle it later
       echo "Launching services ..."
@@ -1019,34 +1019,34 @@ start() {
       # Start processes
       while ! block_exit; do true; done
 
-      start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./vglconfig/src/main/resources/application.properties -jar "$(pwd)/vglconfig/target/vglconfig.jar"
-      VglConfig_pid=$!
+      start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./ldconfig/src/main/resources/application.properties -jar "$(pwd)/ldconfig/target/ldconfig.jar"
+      LdConfig_pid=$!
 
-      start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./vglservice/src/main/resources/application.properties -jar "$(pwd)/vglservice/target/vglservice.jar"
-      VglServiceOne_pid=$!
+      start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./ldservice/src/main/resources/application.properties -jar "$(pwd)/ldservice/target/ldservice.jar"
+      LdServiceOne_pid=$!
 
       if [ "${mode}" -eq "${LOAD_BALANCING_MODE}" ]; then
-        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./vglservice/src/main/resources/application.properties -DAPI_SERVER_PORT="${API_TWO_SERVER_PORT}" -DAPI_HOSTNAME="${API_TWO_HOSTNAME}" -jar "$(pwd)/vglservice/target/vglservice.jar"
-        VglServiceTwo_pid=$!
+        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./ldservice/src/main/resources/application.properties -DAPI_SERVER_PORT="${API_TWO_SERVER_PORT}" -DAPI_HOSTNAME="${API_TWO_HOSTNAME}" -jar "$(pwd)/ldservice/target/ldservice.jar"
+        LdServiceTwo_pid=$!
 
-        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./vglloadbalancer/src/main/resources/application.properties -jar "$(pwd)/vglloadbalancer/target/vglloadbalancer.jar"
-        VglLoadBalancer_pid=$!
+        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./ldloadbalancer/src/main/resources/application.properties -jar "$(pwd)/ldloadbalancer/target/ldloadbalancer.jar"
+        LdLoadbalancer_pid=$!
 
-        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./vgldiscovery/src/main/resources/application.properties -jar "$(pwd)/vgldiscovery/target/vgldiscovery.jar"
-        VglDiscovery_pid=$!
+        start_java_process -XX:TieredStopAtLevel=1 -Dspring.config.location=file:./lddiscovery/src/main/resources/application.properties -jar "$(pwd)/lddiscovery/target/lddiscovery.jar"
+        LdDiscovery_pid=$!
       fi
 
-      cd vglfront || start_error=$?
+      cd ldfront || start_error=$?
       start_npm_process run start
-      VglFront_pid=$!
+      LdFront_pid=$!
 
       # Register the processes info
-      register_process_info "VglConfig" "${VglConfig_pid}" "" "" "" false
-      register_process_info "VglServiceOne" "${VglServiceOne_pid}" "" "" "" false
-      register_process_info "VglServiceTwo" "${VglServiceTwo_pid}" "" "" "" false
-      register_process_info "VglLoadBalancer" "${VglLoadBalancer_pid}" "" "" "" false
-      register_process_info "VglDiscovery" "${VglDiscovery_pid}" "" "" "" false
-      register_process_info "VglFront" "${VglFront_pid}" "" "" "" true "${VglFront_tmp_runner_file}"
+      register_process_info "LdConfig" "${LdConfig_pid}" "" "" "" false
+      register_process_info "LdServiceOne" "${LdServiceOne_pid}" "" "" "" false
+      register_process_info "LdServiceTwo" "${LdServiceTwo_pid}" "" "" "" false
+      register_process_info "LdLoadbalancer" "${LdLoadbalancer_pid}" "" "" "" false
+      register_process_info "LdDiscovery" "${LdDiscovery_pid}" "" "" "" false
+      register_process_info "LdFront" "${LdFront_pid}" "" "" "" true "${ldfront_tmp_runner_file}"
 
       while ! queue_exit; do true; done
 
@@ -1138,26 +1138,26 @@ invoke_graceful_service_cleanup() {
   error=false
 
   case $1 in
-  VglFront)
+  LdFront)
     # Remove the line concerning the temporary runner file
-    if ! sed -i"" "/TMP_RUNNER_FILE/d" vglfront/.env >/dev/null 2>&1; then
+    if ! sed -i"" "/TMP_RUNNER_FILE/d" ldfront/.env >/dev/null 2>&1; then
       echo "Failed to remove the TMP_RUNNER_FILE key from the .env environment file" >&2
       error=true
     fi
 
     # Remove temporary JavaScript environment file to avoid conflicts with Docker
-    if [ -f vglfront/src/assets/environment.js ]; then
+    if [ -f ldfront/src/assets/environment.js ]; then
       echo "Removing temporary JavaScript file src/assets/environment.js"
 
-      if ! rm vglfront/src/assets/environment.js 2>/dev/null; then
+      if ! rm ldfront/src/assets/environment.js 2>/dev/null; then
         echo "Failed to remove the src/assets/environment.js temporary JavaScript environment file" >&2
         error=true
       fi
     fi
 
     # Remove the temporary runner files
-    if [ -f "${TMPDIR:-/tmp}/${VglFront_tmp_runner_file}" ]; then
-      rm "${TMPDIR:-/tmp}/${VglFront_tmp_runner_file}" 2>/dev/null
+    if [ -f "${TMPDIR:-/tmp}/${ldfront_tmp_runner_file}" ]; then
+      rm "${TMPDIR:-/tmp}/${ldfront_tmp_runner_file}" 2>/dev/null
     fi
     ;;
   esac
@@ -1209,7 +1209,7 @@ cleanup() {
 
   if ! ${cleanup_executed}; then
     # Restore directory location
-    if [ -n "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]; then
+    if [ -n "$(pwd | awk '/ldfront[\/\\]?$/ { print }' 2>/dev/null)" ]; then
       cd ..
     fi
 

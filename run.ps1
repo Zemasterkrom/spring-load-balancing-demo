@@ -1367,15 +1367,15 @@ class BackgroundProcess: BackgroundTask {
         $Success = $true
 
         switch ($this.Name) {
-            VglFront {
+            ldfront {
                 # Remove the line concerning the temporary runner file
-                Set-Content -Path vglfront\.env -Value (Get-Content -Path vglfront\.env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
+                Set-Content -Path ldfront\.env -Value (Get-Content -Path ldfront\.env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
                 $Success = $?
 
                 # Remove temporary JavaScript environment file to avoid conflicts with Docker
-                if (Test-Path vglfront\src\assets\environment.js -ErrorAction SilentlyContinue) {
+                if (Test-Path ldfront\src\assets\environment.js -ErrorAction SilentlyContinue) {
                     Write-Information "Removing temporary JavaScript file src\assets\environment.js"
-                    Remove-Item vglfront\src\assets\environment.js -ErrorAction SilentlyContinue
+                    Remove-Item ldfront\src\assets\environment.js -ErrorAction SilentlyContinue
                     $Success = if ($?) {
                         $Success
                     } else {
@@ -2081,19 +2081,19 @@ class Runner {
                 # No-docker build
                 if (-not([Runner]::EnvironmentContext.Build) -and [Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::System)) {
                     if ([Runner]::EnvironmentContext.Start -and (-not([Runner]::EnvironmentContext.LoadBalancing)) -and
-                            (-not(Test-Path vglconfig/target/vglconfig.jar -PathType Leaf) -or
-                                    -not(Test-Path vglservice/target/vglservice.jar -PathType Leaf) -or
-                                    -not(Test-Path vglfront/node_modules -PathType Container))) {
+                            (-not(Test-Path ldconfig/target/ldconfig.jar -PathType Leaf) -or
+                                    -not(Test-Path ldservice/target/ldservice.jar -PathType Leaf) -or
+                                    -not(Test-Path ldfront/node_modules -PathType Container))) {
                         Write-Information "No Load Balancing packages are not completely built. Build mode enabled."
                         [Runner]::EnvironmentContext.Build = $true
                     }
 
                     if ([Runner]::EnvironmentContext.Start -and [Runner]::EnvironmentContext.LoadBalancing -and
-                            (-not(Test-Path vglconfig/target/vglconfig.jar -PathType Leaf) -or
-                                    -not(Test-Path vglservice/target/vglservice.jar -PathType Leaf) -or
-                                    -not(Test-Path vglfront/node_modules -PathType Container) -or
-                                    -not(Test-Path vgldiscovery/target/vgldiscovery.jar -PathType Leaf) -or
-                                    -not(Test-Path vglloadbalancer/target/vglloadbalancer.jar -PathType Leaf))) {
+                            (-not(Test-Path ldconfig/target/ldconfig.jar -PathType Leaf) -or
+                                    -not(Test-Path ldservice/target/ldservice.jar -PathType Leaf) -or
+                                    -not(Test-Path ldfront/node_modules -PathType Container) -or
+                                    -not(Test-Path lddiscovery/target/lddiscovery.jar -PathType Leaf) -or
+                                    -not(Test-Path ldloadbalancer/target/ldloadbalancer.jar -PathType Leaf))) {
                         Write-Information "Load Balancing packages are not completely built. Build mode enabled."
                         [Runner]::EnvironmentContext.Build = $true
                     }
@@ -2102,15 +2102,15 @@ class Runner {
                 if ([Runner]::EnvironmentContext.Build -and ([Runner]::EnvironmentContext.SystemStack.Tag.Equals([SystemStackTag]::System))) {
                     Write-Information "Building packages ..."
 
-                    Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglconfig -f vglconfig\pom.xml
-                    Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglservice -f vglservice\pom.xml
+                    Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=ldconfig -f ldconfig\pom.xml
+                    Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=ldservice -f ldservice\pom.xml
 
                     if ([Runner]::EnvironmentContext.LoadBalancing) {
-                        Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vgldiscovery -f vgldiscovery\pom.xml
-                        Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=vglloadbalancer -f vglloadbalancer\pom.xml
+                        Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=lddiscovery -f lddiscovery\pom.xml
+                        Invoke-And mvn clean package -T 3 -DskipTests -DfinalName=ldloadbalancer -f ldloadbalancer\pom.xml
                     }
 
-                    Invoke-And Set-Location vglfront
+                    Invoke-And Set-Location ldfront
                     Invoke-And npm install
                     Invoke-And Set-Location ..
                 }
@@ -2147,19 +2147,19 @@ class Runner {
 
                     if ([Runner]::EnvironmentContext.LoadBalancing) {
                         [Runner]::Tasks = @([BackgroundTaskFactory]::new($false).buildDockerComposeProcess(@{
-                            ProjectName = "vglloadbalancing-enabled"
+                            ProjectName = "ldloadbalancing-enabled"
                         }, "LoadBalancingServices"))
                     } else {
                         [Runner]::Tasks = @([BackgroundTaskFactory]::new($false).buildDockerComposeProcess((@{
                             StartArguments = "-f", "docker-compose-no-load-balancing.yml", "--env-file", "no-load-balancing.env"
-                            ProjectName = "vglloadbalancing-disabled"
+                            ProjectName = "ldloadbalancing-disabled"
                         }), "NoLoadBalancingServices"))
                     }
                 } else {
                     # No-docker run
                     $frontTask = [BackgroundTaskFactory]::new($true).buildJob(@{
                         ScriptBlock = {
-                            Set-Location "$using:PWD\vglfront"
+                            Set-Location "$using:PWD\ldfront"
                             Write-Output n | npm run start 2> $null
                         }
                     }, @{
@@ -2167,12 +2167,12 @@ class Runner {
                             Param($Task)
 
                             # Remove the line concerning the temporary runner file
-                            Set-Content -Path vglfront\.env -Value (Get-Content -Path vglfront\.env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
+                            Set-Content -Path ldfront\.env -Value (Get-Content -Path ldfront\.env -ErrorAction SilentlyContinue | Select-String -Pattern 'TMP_RUNNER_FILE' -NotMatch) -ErrorAction SilentlyContinue
                     
                             # Remove temporary JavaScript environment file to avoid conflicts with Docker
-                            if (Test-Path vglfront\src\assets\environment.js -ErrorAction SilentlyContinue) {
+                            if (Test-Path ldfront\src\assets\environment.js -ErrorAction SilentlyContinue) {
                                 Write-Information "Removing temporary JavaScript file src\assets\environment.js"
-                                Remove-Item vglfront\src\assets\environment.js -ErrorAction SilentlyContinue
+                                Remove-Item ldfront\src\assets\environment.js -ErrorAction SilentlyContinue
                             }
                     
                             if ($Task.TemporaryFileCheckEnabled) {
@@ -2181,37 +2181,37 @@ class Runner {
                                 }
                             }
                         }
-                    }, "VglFront")
+                    }, "ldfront")
 
-                    Write-Output "FRONT_SERVER_PORT=$env:FRONT_SERVER_PORT" >vglfront\.env
-                    Write-Output "API_URL=$env:API_URL" >>vglfront\.env
-                    Write-Output "TMP_RUNNER_FILE=$( $frontTask.TemporaryFileName )" >>vglfront\.env
-
-                    [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
-                        FilePath = "java"
-                        ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglconfig\src\main\resources\application.properties", "-jar", "vglconfig\target\vglconfig.jar"
-                    }), "VglConfig")
+                    Write-Output "FRONT_SERVER_PORT=$env:FRONT_SERVER_PORT" >ldfront\.env
+                    Write-Output "API_URL=$env:API_URL" >>ldfront\.env
+                    Write-Output "TMP_RUNNER_FILE=$( $frontTask.TemporaryFileName )" >>ldfront\.env
 
                     [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
                         FilePath = "java"
-                        ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglservice\src\main\resources\application.properties", "-jar", "vglservice\target\vglservice.jar"
-                    }), "VglServiceOne")
+                        ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\ldconfig\src\main\resources\application.properties", "-jar", "ldconfig\target\ldconfig.jar"
+                    }), "LdConfig")
+
+                    [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
+                        FilePath = "java"
+                        ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\ldservice\src\main\resources\application.properties", "-jar", "ldservice\target\ldservice.jar"
+                    }), "LdServiceOne")
 
                     if ([Runner]::EnvironmentContext.LoadBalancing) {
                         [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
                             FilePath = "java"
-                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglservice\src\main\resources\application.properties", "-DAPI_SERVER_PORT=$env:API_TWO_SERVER_PORT", "-DAPI_HOSTNAME=$env:API_TWO_HOSTNAME", "-jar", "vglservice\target\vglservice.jar"
-                        }), "VglServiceTwo")
+                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\ldservice\src\main\resources\application.properties", "-DAPI_SERVER_PORT=$env:API_TWO_SERVER_PORT", "-DAPI_HOSTNAME=$env:API_TWO_HOSTNAME", "-jar", "ldservice\target\ldservice.jar"
+                        }), "LdServiceTwo")
 
                         [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
                             FilePath = "java"
-                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vglloadbalancer\src\main\resources\application.properties", "-jar", "vglloadbalancer\target\vglloadbalancer.jar"
-                        }), "VglLoadBalancer")
+                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\ldloadbalancer\src\main\resources\application.properties", "-jar", "ldloadbalancer\target\ldloadbalancer.jar"
+                        }), "LdLoadbalancer")
 
                         [Runner]::Tasks += [BackgroundTaskFactory]::new($true).buildProcess((@{
                             FilePath = "java"
-                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\vgldiscovery\src\main\resources\application.properties", "-jar", "vgldiscovery\target\vgldiscovery.jar"
-                        }), "VglDiscovery")
+                            ArgumentList = "-XX:TieredStopAtLevel=1", "-Dspring.config.location=file:.\lddiscovery\src\main\resources\application.properties", "-jar", "lddiscovery\target\lddiscovery.jar"
+                        }), "LdDiscovery")
                     }
 
                     [Runner]::Tasks += $frontTask

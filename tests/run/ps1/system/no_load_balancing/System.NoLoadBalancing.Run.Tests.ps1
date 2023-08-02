@@ -120,8 +120,8 @@ class MockedRunner: Runner {
             }
 
             It 'checks that the run stage is triggered' {
-                $TestOutput | Should -Match "Launching services ...;Starting the VglConfig process;Starting the VglServiceOne process;"
-                $TestOutput | Should -Not -Match "VglServiceTwo|VglLoadBalancer|VglDiscovery"
+                $TestOutput | Should -Match "Launching services ...;Starting the LdConfig process;Starting the LdServiceOne process;"
+                $TestOutput | Should -Not -Match "ldserviceTwo|ldloadbalancer|lddiscovery"
                 $TestOutput | Should -Not -Match "Launching Docker services ..."
                 [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 3
                 Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 3 }
@@ -181,8 +181,8 @@ class MockedRunner: Runner {
         It 'starts the demonstration without Docker and stops it successfully' {
             $TestOutput | Should -Match "Launching services ..."
             $TestOutput | Should -Not -Match "Launching Docker services ..."
-            Get-Content "$PSScriptRoot\..\..\..\..\..\vglfront\.env" | Should -Not -Match "^TMP_RUNNER_FILE"
-            "$PSScriptRoot\..\..\..\..\..\vglfront\src\assets\environment.js" | Should -Not -Exist
+            Get-Content "$PSScriptRoot\..\..\..\..\..\ldfront\.env" | Should -Not -Match "^TMP_RUNNER_FILE"
+            "$PSScriptRoot\..\..\..\..\..\ldfront\src\assets\environment.js" | Should -Not -Exist
             [Runner]::EnvironmentContext.CleanupExitCode | Should -BeExactly 130
             Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 130 }
             Assert-ProcessesAreStopped | Should -BeTrue

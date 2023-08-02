@@ -1,38 +1,38 @@
 version: '2'
 
 services:
-  vgldatabase:
+  lddatabase:
     image: postgres:15.1-alpine
     restart: unless-stopped
-    container_name: vgldatabase
+    container_name: lddatabase
     environment:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      PGDATA: /data/vgl
+      PGDATA: /data/lds
     volumes:
-      - vgldatabase:/data/vgl
+      - lddatabase:/data/lds
     ports:
       - ${DB_PORT}:5432
 
-  vglconfig:
-    build: ./vglconfig
-    image: vglconfig
+  ldconfig:
+    build: ./ldconfig
+    image: ldconfig
     restart: unless-stopped
-    container_name: vglconfig
+    container_name: ldconfig
     environment:
       - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
       - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-}
     volumes:
-      - ./vglconfig/src/main/resources/application.properties:/usr/vglconfig/application.properties
-      - ./vglconfig/server/docker/config:/usr/vglconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldconfig/src/main/resources/application.properties:/usr/ldconfig/application.properties
+      - ./ldconfig/server/docker/config:/usr/ldconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 
-  vglservice:
-    build: ./vglservice
-    image: vglservice
+  ldservice:
+    build: ./ldservice
+    image: ldservice
     restart: unless-stopped
-    container_name: vglservice
+    container_name: ldservice
     environment:
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
@@ -41,23 +41,23 @@ services:
       - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
       - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
       - API_HOSTNAME=${API_HOSTNAME:-}
-      - CONTAINER_NAME_ID=vglservice # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
+      - CONTAINER_NAME_ID=ldservice # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
     volumes:
-      - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
-      - ./vglservice/server/docker/config/vglservice:/usr/vglservice/config/vglservice # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldservice/src/main/resources/application.properties:/usr/ldservice/application.properties
+      - ./ldservice/server/docker/config/ldservice:/usr/ldservice/config/ldservice # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${API_SERVER_PORT}:8080
     depends_on:
-      - vglconfig
-      - vgldatabase
-      - vglloadbalancer
-      - vgldiscovery
+      - ldconfig
+      - lddatabase
+      - ldloadbalancer
+      - lddiscovery
 
-  vglservice-two:
-    build: ./vglservice
-    image: vglservice
+  ldservice-two:
+    build: ./ldservice
+    image: ldservice
     restart: unless-stopped
-    container_name: vglservice-two
+    container_name: ldservice-two
     environment:
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
@@ -66,37 +66,37 @@ services:
       - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
       - API_ALLOWED_ORIGINS=${API_ALLOWED_ORIGINS}
       - API_HOSTNAME=${API_TWO_HOSTNAME:-}
-      - CONTAINER_NAME_ID=vglservice_two # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
+      - CONTAINER_NAME_ID=ldservice_two # The container ID is required because several APIs can be executed. This is linked to Docker Desktop, which does not persist system-related variables.
     ports:
       - ${API_TWO_SERVER_PORT}:8080
     volumes:
-      - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
-      - ./vglservice/server/docker/config/vglservice_two:/usr/vglservice/config/vglservice_two # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldservice/src/main/resources/application.properties:/usr/ldservice/application.properties
+      - ./ldservice/server/docker/config/ldservice_two:/usr/ldservice/config/ldservice_two # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     depends_on:
-      - vglconfig
-      - vgldatabase
-      - vglloadbalancer
-      - vgldiscovery
+      - ldconfig
+      - lddatabase
+      - ldloadbalancer
+      - lddiscovery
 
-  vglfront:
-    build: ./vglfront
-    image: vglfront
+  ldfront:
+    build: ./ldfront
+    image: ldfront
     restart: unless-stopped
-    container_name: vglfront
+    container_name: ldfront
     environment:
       - API_URL=${API_URL}
       - TEST_API_URL=${TEST_API_URL}
     volumes:
-      - ./vglfront/src/assets:/usr/share/nginx/html/assets
-      - ./vglfront/server/docker/default.conf:/etc/nginx/conf.d/default.conf
+      - ./ldfront/src/assets:/usr/share/nginx/html/assets
+      - ./ldfront/server/docker/default.conf:/etc/nginx/conf.d/default.conf
     ports:
       - ${FRONT_SERVER_PORT}:80
 
-  vglloadbalancer:
-    build: ./vglloadbalancer
-    image: vglloadbalancer
+  ldloadbalancer:
+    build: ./ldloadbalancer
+    image: ldloadbalancer
     restart: unless-stopped
-    container_name: vglloadbalancer
+    container_name: ldloadbalancer
     environment:
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
       - EUREKA_SERVERS_URLS=${EUREKA_SERVERS_URLS}
@@ -105,25 +105,25 @@ services:
     ports:
       - ${LOADBALANCER_SERVER_PORT}:10000
     volumes:
-      - ./vglloadbalancer/src/main/resources/application.properties:/usr/vglloadbalancer/application.properties
-      - ./vglloadbalancer/server/docker/config:/usr/vglloadbalancer/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldloadbalancer/src/main/resources/application.properties:/usr/ldloadbalancer/application.properties
+      - ./ldloadbalancer/server/docker/config:/usr/ldloadbalancer/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     depends_on:
-      - vglconfig
-      - vgldiscovery
+      - ldconfig
+      - lddiscovery
 
-  vgldiscovery:
-    build: ./vgldiscovery
-    image: vgldiscovery
+  lddiscovery:
+    build: ./lddiscovery
+    image: lddiscovery
     restart: unless-stopped
-    container_name: vgldiscovery
+    container_name: lddiscovery
     environment:
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
     ports:
       - ${DISCOVERY_SERVER_PORT}:9999
     volumes:
-      - ./vgldiscovery/src/main/resources/application.properties:/usr/vgldiscovery/application.properties
+      - ./lddiscovery/src/main/resources/application.properties:/usr/lddiscovery/application.properties
     depends_on:
-      - vglconfig
+      - ldconfig
 
 volumes:
-  vgldatabase:
+  lddatabase:

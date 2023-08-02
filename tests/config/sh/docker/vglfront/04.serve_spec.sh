@@ -9,7 +9,7 @@
 # shellcheck disable=SC2286
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
-cd ../../../vglfront/server/docker || return 1
+cd ../../../ldfront/server/docker || return 1
 load_core_only=true . ./serve.sh
 
 Describe 'Front server handling'
@@ -64,18 +64,18 @@ Describe 'Front server handling'
 
     Context 'Concrete run without front server start'
         configure_browser_environment() {
-            if configure_environment_file "${SHELLSPEC_PROJECT_ROOT}/../../../vglfront/src/assets/environment.js" C.UTF-8 @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = @JSVALUE@;" url "${API_URL:-http://localhost:10000}"; then
+            if configure_environment_file "${SHELLSPEC_PROJECT_ROOT}/../../../ldfront/src/assets/environment.js" C.UTF-8 @JSKEY@ @JSVALUE@ "window['environment']['@JSKEY@'] = @JSVALUE@;" url "${API_URL:-http://localhost:10000}"; then
                 configured_browser_environment=true
             fi
         }
 
         rm() {
-            unlink "${SHELLSPEC_PROJECT_ROOT}/../../../vglfront/src/assets/environment.js" >/dev/null 2>&1
+            unlink "${SHELLSPEC_PROJECT_ROOT}/../../../ldfront/src/assets/environment.js" >/dev/null 2>&1
         }
 
         test() {
             if echo "$@" | grep -q "/usr/share/nginx/html/assets/environment.js"; then
-                [ -f "${SHELLSPEC_PROJECT_ROOT}/../../../vglfront/src/assets/environment.js" ]
+                [ -f "${SHELLSPEC_PROJECT_ROOT}/../../../ldfront/src/assets/environment.js" ]
             else
                 sh -c "test $*"
             fi

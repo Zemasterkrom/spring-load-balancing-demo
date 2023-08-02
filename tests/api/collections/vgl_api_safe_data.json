@@ -17,7 +17,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/all`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/all`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Database should be empty after complete deletion\", () => {",
@@ -41,7 +41,7 @@
 							"",
 							"for (const object of body) {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"        method: \"POST\",",
 							"        body: object",
 							"    });",
@@ -55,9 +55,9 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/delete",
+					"raw": "{{ldservice-url}}/video-games/delete",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -81,7 +81,7 @@
 							"let currentlyProcessedVideoGame = DataSetProcessor.getCurrentlyProcessedData();",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/${currentlyProcessedVideoGame[\"name\"]}`, ",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/${currentlyProcessedVideoGame[\"name\"]}`, ",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Video game should no longer exist after deletion\", () => {",
@@ -105,12 +105,12 @@
 							"",
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        for (const object of DataSetProcessor.getInitialDataSet()) {",
 							"            pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -134,9 +134,9 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/delete/{{name}}",
+					"raw": "{{ldservice-url}}/video-games/delete/{{name}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -156,7 +156,7 @@
 						"exec": [
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    });",
 							"}).setTestData([",
@@ -180,7 +180,7 @@
 							"let currentlyProcessedVideoGame = DataSetProcessor.getCurrentlyProcessedData();",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/${currentlyProcessedVideoGame[\"name\"]}`, ",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/${currentlyProcessedVideoGame[\"name\"]}`, ",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Created object must match the filled JSON data used to create the video game\", function() {",
@@ -213,9 +213,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/add",
+					"raw": "{{ldservice-url}}/video-games/add",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -241,14 +241,14 @@
 							"",
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        for (const object of DataSetProcessor.getInitialDataSet()) {",
 							"            delete object.newName;",
 							"            ",
 							"            pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -276,7 +276,7 @@
 							"let currentlyProcessedVideoGame = DataSetProcessor.getCurrentlyProcessedData();",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/${currentlyProcessedVideoGame[\"newName\"]}`, ",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/${currentlyProcessedVideoGame[\"newName\"]}`, ",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Created object must match the filled JSON data used to modify the video game\", () => {",
@@ -309,9 +309,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/modify/{{name}}",
+					"raw": "{{ldservice-url}}/video-games/modify/{{name}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",

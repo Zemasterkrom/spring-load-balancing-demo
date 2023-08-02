@@ -21,7 +21,7 @@ Describe 'System build'
     }
 
     current_location_is_at_the_base_of_the_project() {
-        [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
+        [ -z "$(pwd | awk '/ldfront[\/\\]?$/ { print }' 2>/dev/null)" ]
     }
     
     start_with_stop_indice() {
@@ -38,7 +38,7 @@ Describe 'System build'
         End
 
         Mock npm
-            echo vglfront
+            echo ldfront
         End
 
         Context 'Build mode disabled'
@@ -90,11 +90,11 @@ Describe 'System build'
                         The status should be success
                         The lines of stdout should equal 6
                         The line 1 of stdout should eq "Building packages ..."
-                        The line 2 of stdout should eq vglconfig
-                        The line 3 of stdout should eq vglservice
-                        The line 4 of stdout should eq vgldiscovery
-                        The line 5 of stdout should eq vglloadbalancer
-                        The line 6 of stdout should eq vglfront
+                        The line 2 of stdout should eq ldconfig
+                        The line 3 of stdout should eq ldservice
+                        The line 4 of stdout should eq lddiscovery
+                        The line 5 of stdout should eq ldloadbalancer
+                        The line 6 of stdout should eq ldfront
                         The stderr should eq "Load Balancing packages are not completely built. Build mode enabled."
                         The variable build should eq true
                         The variable start should eq true
@@ -179,11 +179,11 @@ ${REQUIREMENTS_TEXT}"
                         The status should be success
                         The lines of stdout should equal 6
                         The line 1 of stdout should eq "Building packages ..."
-                        The line 2 of stdout should eq vglconfig
-                        The line 3 of stdout should eq vglservice
-                        The line 4 of stdout should eq vgldiscovery
-                        The line 5 of stdout should eq vglloadbalancer
-                        The line 6 of stdout should eq vglfront
+                        The line 2 of stdout should eq ldconfig
+                        The line 3 of stdout should eq ldservice
+                        The line 4 of stdout should eq lddiscovery
+                        The line 5 of stdout should eq ldloadbalancer
+                        The line 6 of stdout should eq ldfront
                         The variable build should eq true
                         The variable start should eq false
                         The variable mode should eq "${LOAD_BALANCING_MODE}"

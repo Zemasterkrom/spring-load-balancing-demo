@@ -54,7 +54,7 @@ Describe 'Docker run (no Load Balancing)'
     }
 
     current_location_is_at_the_base_of_the_project() {
-        [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
+        [ -z "$(pwd | awk '/ldfront[\/\\]?$/ { print }' 2>/dev/null)" ]
     }
 
     no_background_process_is_alive() {
@@ -234,8 +234,8 @@ Describe 'Docker run (no Load Balancing)'
                     running_services_counter=$((running_services_counter + 1))
                 fi
             done <<EOF
-$(${docker_compose_cli} -p vglloadbalancing-disabled ps --filter "status=running" --services)
-$(${docker_compose_cli} -p vglloadbalancing-disabled ps --filter "status=restarting" --services)
+$(${docker_compose_cli} -p ldloadbalancing-disabled ps --filter "status=running" --services)
+$(${docker_compose_cli} -p ldloadbalancing-disabled ps --filter "status=restarting" --services)
 EOF
 
 

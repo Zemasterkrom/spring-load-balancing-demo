@@ -140,15 +140,15 @@ class MockedRunner: Runner {
     Context 'Concrete run behavior check' -Tag ConcreteRun {
         BeforeEach {
             function Assert-ContainersAreStopped {
-                $RunningServices = (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p vglloadbalancing-disabled ps --filter status=running --services").Split([Environment]::NewLine)
-                $RunningServices += (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p vglloadbalancing-disabled ps --filter status=restarting --services").Split([Environment]::NewLine)
+                $RunningServices = (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p ldloadbalancing-disabled ps --filter status=running --services").Split([Environment]::NewLine)
+                $RunningServices += (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p ldloadbalancing-disabled ps --filter status=restarting --services").Split([Environment]::NewLine)
                 $RunningServices = $RunningServices | Where-Object { -not([String]::IsNullOrWhiteSpace($_)) } | Get-Unique
                 $MatchedRunningServicesCounter = 0
                 $TotalRunningServicesCounter = 0
 
                 foreach ($RunningService in $RunningServices) {
                     switch -Regex ($RunningService) {
-                        "^(vgldatabase|vglconfig|vglfront|vglservice)$" {
+                        "^(lddatabase|ldconfig|ldfront|ldservice)$" {
                             $TotalRunningServicesCounter++
                             $MatchedRunningServicesCounter++
                         }
@@ -162,14 +162,14 @@ class MockedRunner: Runner {
             }
 
             function Assert-ContainersAreStarted {
-                $RunningServices = (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p vglloadbalancing-disabled ps --filter status=running --services").Split([Environment]::NewLine)
+                $RunningServices = (cmd /c "$([Runner]::Tasks[0].DockerComposeCli.SystemStackComponents[0].Command[0]) $([Runner]::Tasks[0].TaskStartInfo.DockerComposeProcessArgumentList) -p ldloadbalancing-disabled ps --filter status=running --services").Split([Environment]::NewLine)
                 $RunningServices = $RunningServices | Where-Object { -not([String]::IsNullOrWhiteSpace($_)) } | Get-Unique
                 $MatchedRunningServicesCounter = 0
                 $TotalRunningServicesCounter = 0
 
                 foreach ($RunningService in $RunningServices) {
                     switch -Regex ($RunningService) {
-                        "^(vgldatabase|vglconfig|vglfront|vglservice)$" {
+                        "^(lddatabase|ldconfig|ldfront|ldservice)$" {
                             $TotalRunningServicesCounter++
                             $MatchedRunningServicesCounter++
                         }

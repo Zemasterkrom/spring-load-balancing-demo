@@ -1,38 +1,38 @@
 version: '2'
 
 services:
-  vgldatabase:
+  lddatabase:
     image: postgres:15.1-alpine
     restart: unless-stopped
-    container_name: vgldatabase-nlb
+    container_name: lddatabase-nlb
     environment:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      PGDATA: /data/vgl
+      PGDATA: /data/lds
     volumes:
-      - vgldatabase-nlb:/data/vgl
+      - lddatabase-nlb:/data/lds
     ports:
       - ${DB_PORT}:5432
 
-  vglconfig:
-    build: ./vglconfig
-    image: vglconfig
+  ldconfig:
+    build: ./ldconfig
+    image: ldconfig
     restart: unless-stopped
-    container_name: vglconfig-nlb
+    container_name: ldconfig-nlb
     environment:
       - GIT_CONFIG_REPOSITORY=${GIT_CONFIG_REPOSITORY}
       - GIT_CONFIG_BRANCH=${GIT_CONFIG_BRANCH:-}
     volumes:
-      - ./vglconfig/src/main/resources/application.properties:/usr/vglconfig/application.properties
-      - ./vglconfig/server/docker/config:/usr/vglconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
+      - ./ldconfig/src/main/resources/application.properties:/usr/ldconfig/application.properties
+      - ./ldconfig/server/docker/config:/usr/ldconfig/config # Necessary for Docker Desktop because host variables are not saved in containers: they are determined at runtime when the execution script is run
     ports:
       - ${CONFIG_SERVER_PORT}:8888
 
-  vglservice:
-    build: ./vglservice
-    image: vglservice
+  ldservice:
+    build: ./ldservice
+    image: ldservice
     restart: unless-stopped
-    container_name: vglservice-nlb
+    container_name: ldservice-nlb
     environment:
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
@@ -43,25 +43,25 @@ services:
     ports:
       - ${API_SERVER_PORT}:8080
     volumes:
-      - ./vglservice/src/main/resources/application.properties:/usr/vglservice/application.properties
-      - ./vglservice/server/docker/config:/usr/vglservice/config
+      - ./ldservice/src/main/resources/application.properties:/usr/ldservice/application.properties
+      - ./ldservice/server/docker/config:/usr/ldservice/config
     depends_on:
-      - vglconfig
-      - vgldatabase
+      - ldconfig
+      - lddatabase
 
-  vglfront:
-    build: ./vglfront
-    image: vglfront
+  ldfront:
+    build: ./ldfront
+    image: ldfront
     restart: unless-stopped
-    container_name: vglfront-nlb
+    container_name: ldfront-nlb
     environment:
       - API_URL=${API_URL}
       - TEST_API_URL=${TEST_API_URL_NLB}
     volumes:
-      - ./vglfront/src/assets:/usr/share/nginx/html/assets
-      - ./vglfront/server/docker/default.conf:/etc/nginx/conf.d/default.conf
+      - ./ldfront/src/assets:/usr/share/nginx/html/assets
+      - ./ldfront/server/docker/default.conf:/etc/nginx/conf.d/default.conf
     ports:
       - ${FRONT_SERVER_PORT}:80
 
 volumes:
-  vgldatabase-nlb:
+  lddatabase-nlb:

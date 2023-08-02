@@ -24,9 +24,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/video-games/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -64,9 +64,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/modify/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/video-games/modify/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -105,9 +105,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/delete/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/video-games/delete/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -137,9 +137,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"{{$randomUUID}}"
@@ -167,9 +167,9 @@
 				"method": "POST",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"{{$randomUUID}}"
@@ -197,9 +197,9 @@
 				"method": "PUT",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"{{$randomUUID}}"
@@ -227,9 +227,9 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "{{vglservice-url}}/{{$randomUUID}}",
+					"raw": "{{ldservice-url}}/{{$randomUUID}}",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"{{$randomUUID}}"
@@ -247,11 +247,11 @@
 						"exec": [
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -284,7 +284,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/all`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/all`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Video games list should not grow since the video game data is badly formatted\", () => {",
@@ -309,9 +309,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/add",
+					"raw": "{{ldservice-url}}/video-games/add",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -330,11 +330,11 @@
 						"exec": [
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -361,7 +361,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/all`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/all`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Video games list should not grow since the video game data is badly formatted\", () => {",
@@ -386,9 +386,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/add",
+					"raw": "{{ldservice-url}}/video-games/add",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -407,7 +407,7 @@
 						"exec": [
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        let data = [",
@@ -417,7 +417,7 @@
 							"",
 							"        for (const object of data) {",
 							"            pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -451,7 +451,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/all`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/all`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"No video game should be added since we only modify a video game\", () => {",
@@ -460,7 +460,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/Test`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/Test`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Video game must remain the same because the video game data is badly formatted\", () => {",
@@ -490,9 +490,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/modify/Test",
+					"raw": "{{ldservice-url}}/video-games/modify/Test",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",
@@ -512,7 +512,7 @@
 						"exec": [
 							"DataSetProcessor(pm).setInitCallback(() => {",
 							"    pm.sendRequest({",
-							"        url: `${pm.environment.get(\"vglservice-url\")}/video-games/delete`,",
+							"        url: `${pm.environment.get(\"ldservice-url\")}/video-games/delete`,",
 							"        method: \"DELETE\",",
 							"    }, () => {",
 							"        let data = [",
@@ -522,7 +522,7 @@
 							"",
 							"        for (const object of data) {",
 							"            pm.sendRequest({",
-							"                url: `${pm.environment.get(\"vglservice-url\")}/video-games/add`,",
+							"                url: `${pm.environment.get(\"ldservice-url\")}/video-games/add`,",
 							"                method: \"POST\",",
 							"                header: {",
 							"                    \"Content-Type\": \"application/json\"",
@@ -550,7 +550,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/all`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/all`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"No video game should be added since we only modify a video game\", () => {",
@@ -559,7 +559,7 @@
 							"});",
 							"",
 							"pm.sendRequest({",
-							"    url: `${pm.environment.get(\"vglservice-url\")}/video-games/Test`,",
+							"    url: `${pm.environment.get(\"ldservice-url\")}/video-games/Test`,",
 							"    method: \"GET\",",
 							"}, (_, response) => {",
 							"    pm.test(\"Video game must remain the same because the video game name is already referenced\", () => {",
@@ -589,9 +589,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{vglservice-url}}/video-games/modify/Test",
+					"raw": "{{ldservice-url}}/video-games/modify/Test",
 					"host": [
-						"{{vglservice-url}}"
+						"{{ldservice-url}}"
 					],
 					"path": [
 						"video-games",

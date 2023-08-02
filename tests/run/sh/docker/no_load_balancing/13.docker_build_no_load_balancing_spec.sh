@@ -17,7 +17,7 @@ Describe 'Docker build (no Load Balancing)'
     End
 
     current_location_is_at_the_base_of_the_project() {
-        [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
+        [ -z "$(pwd | awk '/ldfront[\/\\]?$/ { print }' 2>/dev/null)" ]
     }
 
     exit_script() {

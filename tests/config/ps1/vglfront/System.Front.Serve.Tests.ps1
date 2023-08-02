@@ -1,13 +1,13 @@
 BeforeDiscovery {
     $env:LOAD_CORE_ONLY = $true
-    . $PSScriptRoot\..\..\..\..\vglfront\server\no-docker\serve.ps1
+    . $PSScriptRoot\..\..\..\..\ldfront\server\no-docker\serve.ps1
 }
 
 BeforeAll {
     $global:InitLocation = Get-Location
     $env:LOAD_CORE_ONLY = $true
     Set-Location $PSScriptRoot
-    . $PSScriptRoot\..\..\..\..\vglfront\server\no-docker\serve.ps1
+    . $PSScriptRoot\..\..\..\..\ldfront\server\no-docker\serve.ps1
 }
 
 Describe 'Front server handling' {
@@ -175,10 +175,10 @@ Describe 'Front server handling' {
             }
 
             It 'handles the front server successfully' {
-                Get-Content "..\..\..\..\vglfront\.env" | Should -Not -Match "^TMP_RUNNER_FILE"
+                Get-Content "..\..\..\..\ldfront\.env" | Should -Not -Match "^TMP_RUNNER_FILE"
                 "$env:TEMP\$env:TMP_RUNNER_FILE" | Should -Not -Exist
                 "$env:TEMP\$($env:TMP_RUNNER_FILE)_2" | Should -Not -Exist
-                "..\..\..\..\vglfront\src\assets\environment.js" | Should -Not -Exist
+                "..\..\..\..\ldfront\src\assets\environment.js" | Should -Not -Exist
                 Should -Invoke Invoke-ExitScript -ParameterFilter { $ExitCode -eq 130 }
                 Assert-ProcessesAreStopped | Should -BeTrue
                 Assert-AtInitialLocation | Should -BeTrue

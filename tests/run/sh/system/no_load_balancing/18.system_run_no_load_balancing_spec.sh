@@ -54,7 +54,7 @@ Describe 'System run (no Load Balancing)'
     }
 
     current_location_is_at_the_base_of_the_project() {
-        [ -z "$(pwd | awk '/vglfront[\/\\]?$/ { print }' 2>/dev/null)" ]
+        [ -z "$(pwd | awk '/LdFront[\/\\]?$/ { print }' 2>/dev/null)" ]
     }
 
     no_background_process_is_alive() {
@@ -120,9 +120,9 @@ Describe 'System run (no Load Balancing)'
                     When call main --no-build --no-load-balancing
                     The status should eq 130
                     The line 1 of stdout should eq "Launching services ..."
-                    The line 2 of stdout should eq "Waiting for VglConfig with PID ${VglConfig_pid} to start ... Please wait ..."
-                    The line 3 of stdout should eq "Waiting for VglServiceOne with PID ${VglServiceOne_pid} to start ... Please wait ..."
-                    The line 4 of stdout should eq "Waiting for VglFront with PID ${VglFront_pid} to start ... Please wait ..."
+                    The line 2 of stdout should eq "Waiting for LdConfig with PID ${LdConfig_pid} to start ... Please wait ..."
+                    The line 3 of stdout should eq "Waiting for LdServiceOne with PID ${LdServiceOne_pid} to start ... Please wait ..."
+                    The line 4 of stdout should eq "Waiting for LdFront with PID ${LdFront_pid} to start ... Please wait ..."
                     The stderr should satisfy no_force_kill_acted
                     The stderr should satisfy has_started
                     The variable build should eq false
@@ -131,9 +131,9 @@ Describe 'System run (no Load Balancing)'
                     The variable environment should eq "${SYSTEM_ENVIRONMENT}"
                     The variable exit_code should eq 130
                     The variable queued_signal_code should eq 130
-                    The variable VglServiceTwo_pid should be undefined
-                    The variable VglLoadBalancer_pid should be undefined
-                    The variable VglDiscovery_pid should be undefined
+                    The variable LdServiceTwo_pid should be undefined
+                    The variable LdLoadbalancer_pid should be undefined
+                    The variable LdDiscovery_pid should be undefined
                     Assert no_background_process_is_alive
                     Assert current_location_is_at_the_base_of_the_project
                 End
@@ -158,17 +158,17 @@ Describe 'System run (no Load Balancing)'
                     The variable exit_code should satisfy gt_than_zero
                     The variable queued_signal_code should eq -1
                     The line 1 of stdout should eq "Launching services ..."
-                    The line 2 of stdout should eq "Waiting for VglConfig with PID ${VglConfig_pid} to start ... Please wait ..."
-                    The line 3 of stdout should eq "Waiting for VglServiceOne with PID ${VglServiceOne_pid} to start ... Please wait ..."
-                    The line 4 of stdout should eq "Waiting for VglFront with PID ${VglFront_pid} to start ... Please wait ..."
+                    The line 2 of stdout should eq "Waiting for LdConfig with PID ${LdConfig_pid} to start ... Please wait ..."
+                    The line 3 of stdout should eq "Waiting for LdServiceOne with PID ${LdServiceOne_pid} to start ... Please wait ..."
+                    The line 4 of stdout should eq "Waiting for LdFront with PID ${LdFront_pid} to start ... Please wait ..."
                     The stderr should satisfy no_force_kill_acted
                     The variable build should eq false
                     The variable start should eq true
                     The variable mode should eq "${NO_LOAD_BALANCING_MODE}"
                     The variable environment should eq "${SYSTEM_ENVIRONMENT}"
-                    The variable VglServiceTwo_pid should be undefined
-                    The variable VglLoadBalancer_pid should be undefined
-                    The variable VglDiscovery_pid should be undefined
+                    The variable LdServiceTwo_pid should be undefined
+                    The variable LdLoadbalancer_pid should be undefined
+                    The variable LdDiscovery_pid should be undefined
                     Assert no_background_process_is_alive
                     Assert current_location_is_at_the_base_of_the_project
                 End
@@ -198,11 +198,11 @@ Describe 'System run (no Load Balancing)'
             The variable environment should eq "${SYSTEM_ENVIRONMENT}"
             The variable exit_code should eq 130
             The variable queued_signal_code should eq 130
-            The variable VglServiceTwo_pid should be undefined
-            The variable VglLoadBalancer_pid should be undefined
-            The variable VglDiscovery_pid should be undefined
-            The contents of file "vglfront/.env" should not include "TMP_RUNNER_FILE"
-            The path "vglfront/src/assets/environment.js" should not be exist
+            The variable LdServiceTwo_pid should be undefined
+            The variable LdLoadbalancer_pid should be undefined
+            The variable LdDiscovery_pid should be undefined
+            The contents of file "ldfront/.env" should not include "TMP_RUNNER_FILE"
+            The path "ldfront/src/assets/environment.js" should not be exist
             Assert no_background_process_is_alive
             Assert current_location_is_at_the_base_of_the_project
         End

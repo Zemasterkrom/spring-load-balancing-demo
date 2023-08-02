@@ -8,7 +8,7 @@
 # shellcheck disable=SC2286
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
-cd ../../../vglfront/server/no-docker || return 1
+cd ../../../ldfront/server/no-docker || return 1
 load_core_only=true context_dir="$(pwd)/../.." . ./serve.sh
 
 Describe 'Front server environment configuration'

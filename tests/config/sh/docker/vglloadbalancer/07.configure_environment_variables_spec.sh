@@ -8,7 +8,7 @@
 # shellcheck disable=SC2286
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
-cd ../../../vglloadbalancer/server/docker/scripts || return 1
+cd ../../../ldloadbalancer/server/docker/scripts || return 1
 load_core_only=true . ./serve.sh
 
 Describe 'Load Balancer server environment configuration'

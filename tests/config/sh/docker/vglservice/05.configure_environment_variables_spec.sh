@@ -8,7 +8,7 @@
 # shellcheck disable=SC2286
 # shellcheck disable=SC2288
 # shellcheck disable=SC2317
-cd ../../../vglservice/server/docker/scripts || return 1
+cd ../../../ldservice/server/docker/scripts || return 1
 load_core_only=true . ./serve.sh
 
 Describe 'Service server environment configuration'
